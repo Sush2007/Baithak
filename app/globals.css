@@ -11,9 +11,14 @@
   --color-on-surface-variant: #c5c5d4;
   --color-border-glow: rgba(255, 186, 9, 0.15);
   
-  --font-heading: "IBM Plex Sans JP", sans-serif;
-  --font-body: "IBM Plex Sans JP", sans-serif;
-  --font-sans: "IBM Plex Sans JP", sans-serif;
+  /* Figma Onboarding Theme Extensions */
+  --color-figma-bg: #0C0E14;
+  --color-figma-surface: #1A1B22;
+  --color-figma-accent: #FFC300;
+  
+  --font-heading: "Plus Jakarta Sans", sans-serif;
+  --font-body: "Plus Jakarta Sans", sans-serif;
+  --font-sans: "Plus Jakarta Sans", sans-serif;
 }
 
 :root {
@@ -28,7 +33,7 @@
 body {
   background-color: var(--color-bg);
   color: #d4e4fa;
-  font-family: "IBM Plex Sans JP", sans-serif;
+  font-family: "Plus Jakarta Sans", sans-serif;
   scroll-behavior: smooth;
   overflow-x: hidden;
 }

@@ -54,19 +54,28 @@ export const AuthProvider = ({ children }) => {
 
   useEffect(() => {
     let isMounted = true;
+    console.log("[AuthContext] Mounting AuthProvider...");
 
     const safetyTimeout = setTimeout(() => {
       if (isMounted) {
-        console.warn('Auth initialization timed out. Forcing load completion.');
+        console.warn('[AuthContext] Auth initialization timed out after 5s. Forcing load completion.');
         setLoading(false);
       }
-    }, 8000);
+    }, 5000);
 
-    // 1. Explicit Session Fetch (Bypasses Strict Mode drops)
     const initializeAuth = async () => {
       try {
-        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+        console.log("[AuthContext] Fetching initial session...");
+        
+        // Timeout wrapper for getSession to prevent silent hangs
+        const sessionPromise = supabase.auth.getSession();
+        const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error("getSession timeout")), 4000));
+        
+        const { data: { session }, error: sessionError } = await Promise.race([sessionPromise, timeoutPromise]);
+        
         if (sessionError) throw sessionError;
+        
+        console.log("[AuthContext] Session fetched:", session ? "User logged in" : "No user");
 
         if (isMounted) {
           setSession(session);
@@ -74,12 +83,14 @@ export const AuthProvider = ({ children }) => {
         }
 
         if (session?.user) {
+          console.log("[AuthContext] Fetching profile for user:", session.user.id);
           const profileData = await fetchProfile(session.user.id);
           if (isMounted) setProfile(profileData);
         }
       } catch (error) {
-        console.error("Critical Auth Initialization Error:", error);
+        console.error("[AuthContext] Critical Auth Initialization Error:", error);
       } finally {
+        console.log("[AuthContext] Auth initialization finished. Setting loading to false.");
         if (isMounted) setLoading(false);
         clearTimeout(safetyTimeout);
       }
@@ -87,27 +98,33 @@ export const AuthProvider = ({ children }) => {
 
     initializeAuth();
 
-    // 2. Background Listener for Future Events Only
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, currentSession) => {
-      // Ignore INITIAL_SESSION as it is handled by getSession() above
-      if (!isMounted || event === 'INITIAL_SESSION') return; 
+    let subscription = null;
+    try {
+      const result = supabase.auth.onAuthStateChange(async (event, currentSession) => {
+        console.log("[AuthContext] Auth state changed:", event);
+        if (!isMounted || event === 'INITIAL_SESSION') return; 
 
-      setSession(currentSession);
-      setUser(currentSession?.user || null);
+        setSession(currentSession);
+        setUser(currentSession?.user || null);
 
-      if (currentSession?.user) {
-        const profileData = await fetchProfile(currentSession.user.id);
-        if (isMounted) setProfile(profileData);
-      } else {
-        if (isMounted) setProfile(null);
-      }
-      if (isMounted) setLoading(false);
-    });
+        if (currentSession?.user) {
+          const profileData = await fetchProfile(currentSession.user.id);
+          if (isMounted) setProfile(profileData);
+        } else {
+          if (isMounted) setProfile(null);
+        }
+        if (isMounted) setLoading(false);
+      });
+      subscription = result.data.subscription;
+    } catch (err) {
+      console.error("[AuthContext] Failed to setup onAuthStateChange:", err);
+    }
 
     return () => {
+      console.log("[AuthContext] Unmounting AuthProvider...");
       isMounted = false;
       clearTimeout(safetyTimeout);
-      subscription.unsubscribe();
+      if (subscription) subscription.unsubscribe();
     };
   }, []);
 

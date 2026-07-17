@@ -10,7 +10,7 @@ import Image from 'next/image';
 
 const R2_BASE_URL = (process.env.NEXT_PUBLIC_R2_URL || 'https://pub-a45e2aa5add24ba0a8813221a09a64a9.r2.dev').replace(/\/$/, '');
 
-const PRESET_AVATARS = Array.from({ length: 24 }, (_, i) => 
+const PRESET_AVATARS = Array.from({ length: 10 }, (_, i) => 
   `${R2_BASE_URL}/avatars/preset/avatar${i + 1}.png`
 );
 
@@ -228,6 +228,12 @@ const ProfileSetupPageClient = () => {
         
         finalAvatarUrl = public_url;
       }
+      
+      // FIX: If no custom avatar and no uploaded file, use the first preset avatar
+      if (!finalAvatarUrl) {
+        finalAvatarUrl = PRESET_AVATARS[0];
+      }
+
 
       // 3. Save profile and complete onboarding
       const { error: updateError } = await supabase
@@ -263,43 +269,35 @@ const ProfileSetupPageClient = () => {
 
   return (
     <ProtectedRoute type="onboarding-only">
-      <div className="min-h-screen bg-bg-dark text-on-surface font-body flex flex-col items-center justify-center py-12 px-6 select-none relative overflow-hidden">
+      <div className="min-h-screen bg-[#0C0E14] text-white font-body flex flex-col items-center justify-center py-12 px-6 select-none relative overflow-hidden">
         {/* Subtle SVG Noise Grain */}
         <div className="noise-overlay"></div>
 
-        {/* Organic Glow Blobs */}
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[250px] bg-primary-navy/15 blur-[120px] rounded-[100%] pointer-events-none transform -rotate-6"></div>
-        <div className="absolute bottom-10 left-10 w-[300px] h-[200px] bg-accent-yellow/5 blur-[90px] rounded-[100%] pointer-events-none transform rotate-12"></div>
-
-        {/* Back Button (Triggers Safe Logout) */}
-        <button 
-          onClick={signOut}
-          className="fixed top-6 left-6 md:top-8 md:left-8 flex items-center gap-2 text-xs font-semibold text-on-surface-variant hover:text-accent-yellow transition-colors cursor-pointer group z-50 premium-glass px-4 py-2 rounded-full shadow-lg"
-        >
-          <ArrowLeft size={14} className="group-hover:-translate-x-0.5 transition-transform" />
-          <span>Cancel & Sign Out</span>
-        </button>
-
-        {/* Main Glassmorphic Form Card */}
-        <div className="w-full max-w-4xl premium-glass rounded-[32px] hover:shadow-[0_25px_60px_rgba(255,186,9,0.08)] transition-all duration-500 overflow-hidden z-10 animate-fade-in relative mx-auto">
-          <div className="p-8 md:p-12 space-y-8 md:space-y-0 md:grid md:grid-cols-2 md:gap-12">
+        {/* Main Figma Form Card */}
+        <div className="w-full max-w-[600px] bg-[#1A1B22] border border-white/10 rounded-[24px] shadow-[0_25px_50px_-12px_rgba(0,0,0,0.5)] z-10 animate-fade-in relative mx-auto overflow-hidden">
+          
+          <div className="p-6 md:p-12 flex flex-col items-center w-full">
             
-            {/* Left Column: Info & Text Inputs */}
-            <div className="flex flex-col space-y-8">
-              {/* Header */}
-              <div className="space-y-4 text-left">
-                <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-accent-yellow/10 border border-accent-yellow/20 text-xs font-bold text-accent-yellow shadow-[inset_0_1px_0_rgba(255,186,9,0.3)] uppercase tracking-wider">
-                  <Sparkles size={12} className="animate-pulse" />
-                  <span>Step 2 of 2: Onboarding</span>
-                </div>
-                <h1 className="text-2xl md:text-4xl font-heading font-bold text-on-surface/95 tracking-tighter">
-                  Create Profile
-                </h1>
-                <p className="text-xs text-on-surface-variant/80 leading-relaxed max-w-sm">
-                  Choose your display identity and pick an avatar to represent you inside campus rooms.
-                </p>
+            {/* Header: Logo and Title */}
+            <div className="flex flex-col items-center mb-4 space-y-2">
+              <div className="flex items-center justify-center">
+                <Image 
+                  src="/logo.png" 
+                  alt="Baithak Logo" 
+                  width={140} 
+                  height={45} 
+                  className="object-contain"
+                  priority
+                />
               </div>
+              <h1 className="text-xl md:text-2xl text-white/90 font-medium tracking-wide">
+                Set up your profile
+              </h1>
+            </div>
 
+            {/* Form */}
+            <form id="profile-form" onSubmit={handleSubmit} className="w-full space-y-4">
+              
               {/* Errors */}
               {submitError && (
                 <div className="text-sm text-red-400 bg-red-500/10 border border-red-500/15 rounded-xl px-4 py-3 flex gap-2 text-left items-center animate-fade-in">
@@ -308,132 +306,60 @@ const ProfileSetupPageClient = () => {
                 </div>
               )}
 
-              {/* Text Form */}
-              <form id="profile-form" onSubmit={handleSubmit} className="space-y-6 flex-1">
-              
-                {/* Display Name Input */}
-                <div className="space-y-2 text-left">
-                  <label className="text-xs font-bold text-accent-yellow uppercase tracking-widest block">
-                    Display Name
-                  </label>
-                  <div className="relative">
-                    <input
-                      type="text"
-                      placeholder="e.g. Soumya Patnaik"
-                      value={displayName}
-                      onChange={(e) => setDisplayName(e.target.value)}
-                      className="w-full bg-bg-dark/80 border border-white/5 shadow-[inset_0_2px_4px_rgba(0,0,0,0.4)] focus:border-accent-yellow/50 focus:ring-2 focus:ring-accent-yellow/10 rounded-2xl px-5 py-4 md:py-4 pl-14 outline-none transition-all duration-300 text-xs md:text-sm font-body text-on-surface placeholder:text-on-surface-variant/35"
-                      required
-                    />
-                    <User size={16} className="text-on-surface-variant/40 absolute left-5 top-1/2 -translate-y-1/2" />
-                  </div>
-                </div>
-
-                {/* Username Input */}
-                <div className="space-y-2 text-left">
-                  <label className="text-xs font-bold text-accent-yellow uppercase tracking-widest block">
-                    Username
-                  </label>
-                  <div className="relative">
-                    <span className="absolute left-5 top-1/2 -translate-y-1/2 text-xs md:text-sm text-on-surface-variant/40 font-mono font-bold">@</span>
-                    <input
-                      type="text"
-                      placeholder="username"
-                      value={username}
-                      onChange={handleUsernameChange}
-                      className={`w-full bg-bg-dark/80 border shadow-[inset_0_2px_4px_rgba(0,0,0,0.4)] rounded-2xl px-5 py-4 md:py-4 pl-10 outline-none transition-all duration-300 text-xs md:text-sm font-body text-on-surface placeholder:text-on-surface-variant/35 ${
-                        usernameError 
-                          ? 'border-red-500/50 focus:border-red-500 focus:ring-2 focus:ring-red-500/10' 
-                          : username && !usernameError 
-                            ? 'border-emerald-500/50 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/10' 
-                            : 'border-white/5 focus:border-accent-yellow/50 focus:ring-2 focus:ring-accent-yellow/10'
-                      }`}
-                      required
-                    />
-                    {username && !usernameError && (
-                      <Check className="text-emerald-400 absolute right-5 top-1/2 -translate-y-1/2 stroke-[2.5]" size={16} />
+              {/* IDENTITY SECTION */}
+              <div className="space-y-2 w-full">
+                <label className="text-[11px] font-medium text-[#8E909E] tracking-widest uppercase block">
+                  IDENTITY
+                </label>
+                <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4 sm:gap-6">
+                  {/* Avatar Preview */}
+                  <div className="relative w-20 h-20 rounded-full border border-white/10 overflow-hidden bg-black/20 shrink-0">
+                    {localPreviewUrl || customAvatarUrl ? (
+                      <Image 
+                        src={localPreviewUrl || customAvatarUrl} 
+                        alt="Avatar Preview" 
+                        fill
+                        sizes="80px"
+                        className="object-cover"
+                        unoptimized={true}
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center">
+                        <User size={32} className="text-white/20" />
+                      </div>
                     )}
                   </div>
                   
-                  {usernameError ? (
-                    <div className="flex items-center gap-1.5 text-xs text-red-400 font-semibold mt-1">
-                      <AlertCircle size={14} className="shrink-0" />
-                      <span>{usernameError}</span>
-                    </div>
-                  ) : (
-                    <p className="text-[10px] text-on-surface-variant/50 font-medium leading-relaxed">
-                      Only lowercase letters, numbers, and underscores are allowed (3-15 characters).
+                  <div className="flex flex-col items-center sm:items-start gap-3 flex-1 text-center sm:text-left">
+                    <button
+                      type="button"
+                      disabled={isSubmitting}
+                      onClick={() => fileInputRef.current?.click()}
+                      className="px-5 py-2.5 bg-[#0052FF] hover:bg-[#0040DB] transition-colors rounded-xl flex items-center gap-2 text-sm font-medium text-white shadow-sm"
+                    >
+                      <UploadCloud size={16} />
+                      <span>Upload Photo</span>
+                    </button>
+                    <p className="text-xs text-[#8E909E] leading-relaxed max-w-xs">
+                      You can use your own photo or select a premium Baithak avatar.
                     </p>
-                  )}
-                </div>
-              </form>
-            </div>
-
-            {/* Right Column: Avatar Selection */}
-            <div className="flex flex-col space-y-6 bg-white/[0.02] p-6 md:p-8 rounded-3xl border border-white/5">
-              
-              {/* Square Avatar Uploader */}
-              <div className="space-y-3 text-left">
-                <div className="flex justify-between items-center">
-                  <label className="text-xs font-bold text-accent-yellow uppercase tracking-widest block">
-                    Profile Photo
-                  </label>
-                  {uploadError && (
-                    <span className="text-xs text-red-400 font-medium animate-pulse">{uploadError}</span>
-                  )}
-                </div>
-
-                <div className="relative group w-32 h-32 md:w-40 md:h-40">
-                  <button
-                    type="button"
-                    disabled={isSubmitting}
-                    onClick={() => fileInputRef.current?.click()}
-                    className={`relative w-full h-full rounded-[24px] border-2 border-dashed bg-bg-dark/60 shadow-[inset_0_2px_10px_rgba(0,0,0,0.5)] hover:bg-accent-yellow/5 flex flex-col items-center justify-center transition-all duration-300 select-none cursor-pointer overflow-hidden ${
-                      (customAvatarUrl || localPreviewUrl) && !PRESET_AVATARS.includes(customAvatarUrl)
-                        ? 'border-accent-yellow shadow-[0_0_30px_rgba(255,186,9,0.2)] scale-105'
-                        : 'border-white/10 hover:border-white/25'
-                    }`}
-                  >
-                    {localPreviewUrl || (customAvatarUrl && !PRESET_AVATARS.includes(customAvatarUrl)) ? (
-                      <>
-                        <Image 
-                          src={localPreviewUrl || customAvatarUrl} 
-                          alt="Upload Preview" 
-                          fill
-                          sizes="160px"
-                          className="object-cover"
-                          unoptimized={true}
-                        />
-                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity duration-300">
-                          <Camera size={24} className="text-white" />
-                        </div>
-                      </>
-                    ) : (
-                      <div className="flex flex-col items-center gap-3">
-                        <UploadCloud size={28} className="text-on-surface-variant/60 group-hover:text-accent-yellow transition-colors" />
-                        <span className="text-xs text-on-surface-variant/80 group-hover:text-accent-yellow font-bold text-center leading-none">Custom Photo</span>
-                      </div>
-                    )}
-                  </button>
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={handlePhotoUpload}
-                  />
-                  {(localPreviewUrl || (customAvatarUrl && !PRESET_AVATARS.includes(customAvatarUrl))) && (
-                    <div className="absolute -bottom-3 -right-3 w-8 h-8 bg-accent-yellow text-bg-dark rounded-full flex items-center justify-center text-sm font-extrabold shadow-xl z-10 border-[3px] border-bg-dark">
-                      <Check size={18} className="stroke-[3]" />
-                    </div>
-                  )}
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={handlePhotoUpload}
+                    />
+                  </div>
                 </div>
               </div>
 
-              {/* Preset Avatars Selection */}
-              <div className="pt-2 flex-1">
-                <p className="text-[11px] text-on-surface-variant/70 uppercase tracking-wider font-bold mb-4">Or choose a preset</p>
-                <div className="grid grid-cols-4 gap-4 md:gap-5 place-items-center max-w-sm mx-auto md:mx-0">
+              {/* CHOOSE YOUR AVATAR SECTION */}
+              <div className="space-y-2 w-full">
+                <label className="text-[11px] font-medium text-[#8E909E] tracking-widest uppercase block">
+                  CHOOSE YOUR AVATAR
+                </label>
+                <div className="flex flex-wrap justify-center gap-3 md:gap-4 place-items-center">
                   {PRESET_AVATARS.map((url, idx) => (
                     <button
                       key={idx}
@@ -443,61 +369,114 @@ const ProfileSetupPageClient = () => {
                         setSelectedFile(null);
                         setCustomAvatarUrl(url);
                       }}
-                      className={`relative w-12 h-12 md:w-14 md:h-14 rounded-2xl border-2 transition-all duration-300 overflow-hidden hover:scale-110 cursor-pointer shadow-md ${
+                      className={`relative w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 rounded-full transition-all duration-300 overflow-hidden hover:scale-105 cursor-pointer bg-black/40 ${
                         customAvatarUrl === url && !localPreviewUrl
-                          ? 'border-accent-yellow shadow-[0_0_20px_rgba(255,186,9,0.3)] scale-110 z-10'
-                          : 'border-transparent hover:border-white/20'
+                          ? 'ring-2 ring-offset-2 ring-offset-[#1A1B22] ring-[#FFC300]'
+                          : 'border border-transparent'
                       }`}
                     >
-                      <Image src={url} alt={`Preset ${idx + 1}`} fill sizes="56px" className="object-cover" unoptimized={true} />
-                      {customAvatarUrl === url && !localPreviewUrl && (
-                        <div className="absolute inset-0 bg-black/20 flex items-center justify-center backdrop-blur-[1px]">
-                          <Check size={18} className="text-accent-yellow stroke-[4]" />
-                        </div>
-                      )}
+                      <Image src={url} alt={`Preset ${idx + 1}`} fill sizes="64px" className="object-cover" unoptimized={true} />
                     </button>
                   ))}
                 </div>
               </div>
-            </div>
-          </div>
-          
-          {/* Action Footer */}
-          <div className="p-6 md:p-8 border-t border-white/10 bg-black/20 flex flex-col md:justify-end items-center md:items-end w-full">
-            {/* Desktop Button (Hidden on Mobile) */}
-            <Button
-              form="profile-form"
-              type="submit"
-              variant="primary"
-              disabled={!isFormValid || isSubmitting}
-              className="hidden md:flex w-full md:w-auto px-8 py-3.5 text-xs md:text-sm font-bold tracking-widest uppercase hover:shadow-[0_0_30px_rgba(255,186,9,0.3)] transition-all items-center justify-center gap-2 group cursor-pointer rounded-xl"
-            >
-              {isSubmitting ? (
-                <>
-                  <Loader2 size={16} className="animate-spin" />
-                  <span>Submitting...</span>
-                </>
-              ) : (
-                <>
-                  <span>Complete Setup</span>
-                  <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" />
-                </>
-              )}
-            </Button>
 
-            {/* Mobile Swipe to Submit (Hidden on Desktop) */}
-            <SwipeToSubmit 
-              isSubmitting={isSubmitting} 
-              disabled={!isFormValid || isSubmitting} 
-              onSubmit={() => {
-                // Manually trigger the form submission via event since we are not a standard submit button
-                const form = document.getElementById('profile-form');
-                if (form) {
-                  form.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
-                }
-              }} 
-            />
+              {/* DISPLAY NAME SECTION */}
+              <div className="space-y-2 w-full pt-2">
+                <label className="text-[11px] font-medium text-[#8E909E] tracking-widest uppercase block">
+                  DISPLAY NAME
+                </label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    placeholder="Aarav Sharma"
+                    value={displayName}
+                    onChange={(e) => setDisplayName(e.target.value)}
+                    className="w-full bg-white border border-transparent focus:border-[#0052FF] focus:ring-2 focus:ring-[#0052FF]/20 rounded-xl px-4 py-3 outline-none transition-all text-sm font-medium text-black placeholder:text-gray-400"
+                    required
+                  />
+                </div>
+                <p className="text-xs text-[#8E909E]">This is the name other members will see.</p>
+              </div>
+
+              {/* USERNAME SECTION */}
+              <div className="space-y-2 w-full pb-2">
+                <label className="text-[11px] font-medium text-[#8E909E] tracking-widest uppercase block">
+                  USERNAME
+                </label>
+                <div className="relative flex items-center">
+                  <input
+                    type="text"
+                    placeholder="aarav_baithak"
+                    value={username}
+                    onChange={handleUsernameChange}
+                    className={`w-full bg-white rounded-xl px-4 py-3 pl-8 outline-none transition-all text-sm font-medium text-black placeholder:text-gray-400 border ${
+                      usernameError 
+                        ? 'border-red-500 focus:border-red-500 focus:ring-2 focus:ring-red-500/20' 
+                        : username && !usernameError 
+                          ? 'border-transparent focus:border-[#0052FF] focus:ring-2 focus:ring-[#0052FF]/20' 
+                          : 'border-transparent focus:border-[#0052FF] focus:ring-2 focus:ring-[#0052FF]/20'
+                    }`}
+                    required
+                  />
+                  <span className="absolute left-4 text-sm text-gray-400 font-mono font-medium">@</span>
+                  {username && !usernameError && (
+                    <Check className="text-emerald-500 absolute right-4" size={18} />
+                  )}
+                </div>
+                {usernameError ? (
+                  <div className="flex items-center gap-1.5 text-xs text-red-400 font-medium">
+                    <AlertCircle size={14} className="shrink-0" />
+                    <span>{usernameError}</span>
+                  </div>
+                ) : username && !usernameError ? (
+                  <p className="text-xs text-emerald-500 font-medium">Username is available</p>
+                ) : null}
+              </div>
+
+              {/* ACTION BUTTON */}
+              <div className="w-full pt-4 flex flex-col items-center justify-center gap-4">
+                {/* Desktop Button (Hidden on Mobile) */}
+                <button
+                  type="submit"
+                  disabled={!isFormValid || isSubmitting}
+                  className="hidden md:flex w-48 bg-[#0052FF] hover:bg-[#0040DB] disabled:opacity-50 disabled:cursor-not-allowed transition-colors rounded-xl py-3 items-center justify-center gap-2 text-sm font-medium text-white shadow-lg shadow-[#0052FF]/20"
+                >
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 size={18} className="animate-spin" />
+                      <span>Submitting...</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>Continue</span>
+                      <ArrowRight size={18} />
+                    </>
+                  )}
+                </button>
+
+                {/* Mobile Swipe to Submit (Hidden on Desktop) */}
+                <SwipeToSubmit 
+                  isSubmitting={isSubmitting} 
+                  disabled={!isFormValid || isSubmitting} 
+                  onSubmit={() => {
+                    const form = document.getElementById('profile-form');
+                    if (form) {
+                      form.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
+                    }
+                  }} 
+                />
+              </div>
+
+            </form>
           </div>
+        </div>
+
+        {/* Figma Footer Links */}
+        <div className="w-full max-w-[600px] mx-auto mt-8 flex justify-between items-center text-[12px] text-[#8E909E] px-8 z-10">
+          <button className="hover:text-white transition-colors">Privacy Policy</button>
+          <button className="hover:text-white transition-colors">Terms of Service</button>
+          <button className="hover:text-white transition-colors">Support Center</button>
         </div>
 
       </div>

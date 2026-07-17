@@ -1,10 +1,10 @@
 import './globals.css';
-import { IBM_Plex_Sans_JP } from 'next/font/google';
+import { Plus_Jakarta_Sans } from 'next/font/google';
 import { AuthProvider } from '../context/AuthContext';
 import { Analytics } from '@vercel/analytics/react';
 import { SpeedInsights } from '@vercel/speed-insights/next';
 
-const ibmPlexSansJP = IBM_Plex_Sans_JP({
+const plusJakartaSans = Plus_Jakarta_Sans({
   weight: ['300', '400', '500', '600', '700'],
   subsets: ['latin'],
   display: 'swap',
@@ -57,8 +57,8 @@ export const metadata = {
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="en" className={ibmPlexSansJP.className}>
-      <body>
+    <html lang="en" className={plusJakartaSans.className}>
+      <body suppressHydrationWarning>
         <AuthProvider>
           {children}
         </AuthProvider>

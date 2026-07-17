@@ -1,0 +1,1 @@
+Onboarding UI (FRAME)\n  Main (FRAME)\n    Footer Links (FRAME)\n      Link (FRAME)\n        Text (TEXT)\n          Text: Privacy Policy\n      Link (FRAME)\n        Text (TEXT)\n          Text: Terms of Service\n      Link (FRAME)\n        Text (TEXT)\n          Text: Support Center\n
