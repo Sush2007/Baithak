@@ -24,11 +24,17 @@ export const AuthProvider = ({ children }) => {
   // Fetch the public profile record for the authenticated user
   const fetchProfile = async (userId) => {
     try {
-      const { data, error } = await supabase
+      const fetchPromise = supabase
         .from('profiles')
         .select('*')
         .eq('id', userId)
         .single();
+        
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error("Profile fetch timeout")), 3000)
+      );
+
+      const { data, error } = await Promise.race([fetchPromise, timeoutPromise]);
 
       if (error) {
         if (error.code === 'PGRST116' || error.message.includes('JSON object requested, multiple (or no) rows returned')) {
@@ -41,14 +47,20 @@ export const AuthProvider = ({ children }) => {
       return data;
     } catch (err) {
       console.error('Error fetching user profile:', err.message);
-      return { id: userId, setup_completed: false, error: true };
+      if (err.message?.includes('JWT expired') || err.message?.includes('Auth session missing')) {
+        console.warn('JWT expired, signing out forcefully...');
+        supabase.auth.signOut();
+      }
+      return null;
     }
   };
 
   const refreshProfile = async () => {
     if (user?.id) {
       const updatedProfile = await fetchProfile(user.id);
-      setProfile(updatedProfile);
+      if (updatedProfile) {
+        setProfile(updatedProfile);
+      }
     }
   };
 
@@ -58,10 +70,10 @@ export const AuthProvider = ({ children }) => {
 
     const safetyTimeout = setTimeout(() => {
       if (isMounted) {
-        console.warn('[AuthContext] Auth initialization timed out after 5s. Forcing load completion.');
+        console.warn('[AuthContext] Auth initialization timed out after 2s. Forcing load completion.');
         setLoading(false);
       }
-    }, 5000);
+    }, 2000);
 
     const initializeAuth = async () => {
       try {
@@ -85,13 +97,17 @@ export const AuthProvider = ({ children }) => {
         if (session?.user) {
           console.log("[AuthContext] Fetching profile for user:", session.user.id);
           const profileData = await fetchProfile(session.user.id);
-          if (isMounted) setProfile(profileData);
+          if (isMounted && profileData) setProfile(profileData);
         }
       } catch (error) {
         console.error("[AuthContext] Critical Auth Initialization Error:", error);
       } finally {
-        console.log("[AuthContext] Auth initialization finished. Setting loading to false.");
-        if (isMounted) setLoading(false);
+        console.log("[AuthContext] Auth initialization finished.");
+        // If we have an access_token in the URL, wait for onAuthStateChange to handle it.
+        const hasHashToken = typeof window !== 'undefined' && window.location.hash.includes('access_token=');
+        if (isMounted && !hasHashToken) {
+          setLoading(false);
+        }
         clearTimeout(safetyTimeout);
       }
     };
@@ -109,7 +125,7 @@ export const AuthProvider = ({ children }) => {
 
         if (currentSession?.user) {
           const profileData = await fetchProfile(currentSession.user.id);
-          if (isMounted) setProfile(profileData);
+          if (isMounted && profileData) setProfile(profileData);
         } else {
           if (isMounted) setProfile(null);
         }

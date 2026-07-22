@@ -51,41 +51,12 @@ const ProtectedRoute = ({ children, type = 'protected' }) => {
   }, [user, profile, loading, refreshProfile]);
 
   if (loading) {
-    return (
-      <div className="min-h-screen bg-bg-dark text-on-surface font-body flex flex-col items-center justify-center p-6">
-        <div className="glass-card p-8 rounded-3xl border border-white/10 flex flex-col items-center gap-4">
-          <Loader2 className="animate-spin text-accent-yellow" size={32} />
-          <p className="text-xs text-on-surface-variant font-semibold tracking-wider">
-            Initializing Baithak...
-          </p>
-        </div>
-      </div>
-    );
+    return null; // Silent loading for seamless experience
   }
 
   // Handle intermediate profile sync state loading
   if (user && !profile) {
-    return (
-      <div className="min-h-screen bg-bg-dark text-on-surface font-body flex flex-col items-center justify-center p-6">
-        <div className="glass-card p-8 rounded-3xl border border-white/10 flex flex-col items-center gap-4 text-center">
-          <Loader2 className="animate-spin text-accent-yellow" size={32} />
-          <div className="space-y-1">
-            <p className="text-xs text-on-surface-variant font-semibold tracking-wider">
-              Syncing Profile Data...
-            </p>
-            <p className="text-[10px] text-on-surface-variant/50 max-w-[200px]">
-              If this takes too long, your session might be broken.
-            </p>
-          </div>
-          <button 
-            onClick={signOut}
-            className="mt-2 text-[10px] font-bold text-red-400 hover:text-red-300 border border-red-500/20 bg-red-500/10 px-4 py-1.5 rounded-full transition-colors cursor-pointer"
-          >
-            Clear Session
-          </button>
-        </div>
-      </div>
-    );
+    return null; // Silent loading for seamless experience
   }
 
   // 1. Unauthenticated
@@ -93,18 +64,9 @@ const ProtectedRoute = ({ children, type = 'protected' }) => {
     return children;
   }
 
-  // 1.5 Unauthenticated but requesting protected route - force loader while replacing
+  // 1.5 Unauthenticated but requesting protected route - silent redirect
   if (!user && type !== 'public-only') {
-    return (
-      <div className="min-h-screen bg-bg-dark text-on-surface font-body flex flex-col items-center justify-center p-6">
-        <div className="glass-card p-8 rounded-3xl border border-white/10 flex flex-col items-center gap-4">
-          <Loader2 className="animate-spin text-accent-yellow" size={32} />
-          <p className="text-xs text-on-surface-variant font-semibold tracking-wider">
-            Redirecting to login...
-          </p>
-        </div>
-      </div>
-    );
+    return null;
   }
 
   // 2. Authenticated, onboarding incomplete
@@ -117,17 +79,8 @@ const ProtectedRoute = ({ children, type = 'protected' }) => {
     return children;
   }
 
-  // While redirecting, show loader to prevent layout flashing
-  return (
-    <div className="min-h-screen bg-bg-dark text-on-surface font-body flex flex-col items-center justify-center p-6">
-      <div className="glass-card p-8 rounded-3xl border border-white/10 flex flex-col items-center gap-4">
-        <Loader2 className="animate-spin text-accent-yellow" size={32} />
-        <p className="text-xs text-on-surface-variant font-semibold tracking-wider">
-          Redirecting...
-        </p>
-      </div>
-    </div>
-  );
+  // While redirecting, show null to prevent layout flashing
+  return null;
 };
 
 export default ProtectedRoute;

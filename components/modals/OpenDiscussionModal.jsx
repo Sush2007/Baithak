@@ -1,16 +1,53 @@
 "use client";
 
-import React, { useState } from 'react';
-import { X, Image as ImageIcon, Link2, Hash } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
+import { X, ChevronDown, Image as ImageIcon, Film, Trash2, Loader2, UploadCloud } from 'lucide-react';
 
 export default function OpenDiscussionModal({ isOpen, onClose }) {
+  const [mounted, setMounted] = useState(false);
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
+  const [branch, setBranch] = useState('');
+  const [club, setClub] = useState('');
+  const [isGeneral, setIsGeneral] = useState(false);
+  const [media, setMedia] = useState(null);
+  const [uploadProgress, setUploadProgress] = useState(0);
 
-  if (!isOpen) return null;
+  const handleMediaUpload = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    
+    // Simulate professional upload & compression progress
+    setUploadProgress(1);
+    
+    const interval = setInterval(() => {
+      setUploadProgress(prev => {
+        if (prev >= 95) {
+          clearInterval(interval);
+          setTimeout(() => {
+            setUploadProgress(100);
+            setTimeout(() => {
+              setMedia(URL.createObjectURL(file));
+              setUploadProgress(0);
+            }, 400);
+          }, 600);
+          return prev;
+        }
+        // Jump by random chunks to look realistic
+        return prev + Math.floor(Math.random() * 15) + 5;
+      });
+    }, 400);
+  };
 
-  return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!isOpen || !mounted) return null;
+
+  const modalContent = (
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
       {/* Backdrop */}
       <div 
         className="absolute inset-0 bg-black/60 backdrop-blur-sm" 
@@ -18,76 +55,178 @@ export default function OpenDiscussionModal({ isOpen, onClose }) {
       />
       
       {/* Modal */}
-      <div className="relative w-full max-w-2xl bg-[#1A1B22] border border-white/10 rounded-2xl shadow-2xl animate-fade-in overflow-hidden">
+      <div className="relative w-full max-w-[540px] bg-[#1E1F26] border border-white/10 rounded-[12px] shadow-[0_25px_50px_-12px_rgba(0,0,0,0.25)] animate-fade-in overflow-hidden flex flex-col">
         
         {/* Header */}
-        <div className="flex items-center justify-between p-4 sm:p-6 border-b border-white/5">
-          <h2 className="text-xl font-bold text-white">Open a Discussion</h2>
+        <div className="relative px-6 py-6 border-b border-white/5">
           <button 
             onClick={onClose}
-            className="text-white/50 hover:text-white p-1 rounded-full hover:bg-white/10 transition-colors"
+            className="absolute top-6 right-6 text-white/50 hover:text-white p-1 rounded-full hover:bg-white/10 transition-colors"
           >
-            <X size={20} />
+            <X size={18} />
           </button>
+          <div className="pr-10">
+            <h2 className="text-[24px] font-bold text-[#E2E1EB] leading-tight">Open a Discussion</h2>
+            <p className="text-[13px] text-[#C4C5D5] mt-1.5">Ask a doubt, seek opinions, or start a meaningful conversation</p>
+          </div>
         </div>
 
         {/* Body */}
-        <div className="p-4 sm:p-6 space-y-4">
-          <input 
-            type="text" 
-            placeholder="What's your discussion about?"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            className="w-full bg-transparent text-xl font-bold text-white placeholder:text-white/30 outline-none border-b border-transparent focus:border-white/10 pb-2 transition-colors"
-          />
+        <div className="p-6 space-y-5 overflow-y-auto max-h-[65vh] scrollbar-hide">
+          {/* Title Field */}
+          <div className="space-y-2.5">
+            <label className="block text-[12px] font-semibold text-[#E2E1EB] uppercase tracking-wider">
+              DISCUSSION TITLE
+            </label>
+            <input 
+              type="text" 
+              placeholder="Enter a descriptive title..."
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              className="w-full h-[40px] bg-[#0C0E14] border border-white/10 rounded-lg px-3.5 text-[14px] text-white placeholder:text-[#8E909E] outline-none focus:border-[#0033A0] transition-colors"
+            />
+          </div>
           
-          <textarea 
-            placeholder="Share the details, ask a question, or start a debate..."
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
-            className="w-full bg-transparent text-sm text-white/80 placeholder:text-white/30 outline-none resize-none min-h-[150px]"
-          />
+          {/* Description Field */}
+          <div className="space-y-2.5">
+            <label className="block text-[12px] font-semibold text-[#E2E1EB] uppercase tracking-wider">
+              DISCUSSION DESCRIPTION
+            </label>
+            <textarea 
+              placeholder="Share more context, details, or questions..."
+              value={content}
+              onChange={(e) => setContent(e.target.value)}
+              className="w-full min-h-[100px] bg-[#0C0E14] border border-white/10 rounded-lg p-3.5 text-[14px] text-white placeholder:text-[#8E909E] outline-none focus:border-[#0033A0] resize-none transition-colors"
+            />
+          </div>
 
-          {/* Tags (Mocked) */}
-          <div className="flex items-center gap-2 flex-wrap pt-2">
-            <span className="flex items-center gap-1 text-[11px] font-medium text-white/60 bg-white/5 border border-white/5 px-3 py-1.5 rounded-lg cursor-pointer hover:bg-white/10 transition-colors">
-              <Hash size={12} /> Add Tags
-            </span>
+          {/* Upload Media Field */}
+          <div className="space-y-2.5">
+            <label className="block text-[12px] font-semibold text-[#E2E1EB] uppercase tracking-wider">
+              UPLOAD MEDIA (OPTIONAL)
+            </label>
+            {!media && uploadProgress === 0 && (
+              <div className="flex gap-3">
+                <label className="flex items-center gap-2 px-4 py-3 bg-[#0C0E14] border border-white/10 border-dashed rounded-lg text-sm text-white/70 hover:bg-white/5 hover:text-white hover:border-white/30 cursor-pointer transition-all w-full justify-center">
+                  <UploadCloud size={18} className="text-[#0033A0]" />
+                  <span className="font-medium">Upload Image or Video (Auto-compresses)</span>
+                  <input type="file" accept="image/*,video/*" className="hidden" onChange={handleMediaUpload} />
+                </label>
+              </div>
+            )}
+            
+            {uploadProgress > 0 && (
+              <div className="flex flex-col justify-center p-6 border border-white/10 bg-[#0C0E14] rounded-lg">
+                <div className="flex justify-between items-center mb-2">
+                  <p className="text-[13px] font-semibold text-[#E2E1EB]">
+                    {uploadProgress < 100 ? 'Uploading & Compressing...' : 'Processing complete!'}
+                  </p>
+                  <span className="text-[12px] text-[#FFC300] font-bold">{Math.min(uploadProgress, 100)}%</span>
+                </div>
+                <div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden">
+                  <div 
+                    className="h-full bg-gradient-to-r from-[#0033A0] to-[#FFC300] transition-all duration-300 ease-out rounded-full"
+                    style={{ width: `${Math.min(uploadProgress, 100)}%` }}
+                  />
+                </div>
+                <p className="text-[11px] text-white/40 mt-3 flex items-center gap-1.5">
+                  <Loader2 size={12} className={uploadProgress < 100 ? "animate-spin" : "hidden"} />
+                  High-efficiency codec applied
+                </p>
+              </div>
+            )}
+
+            {media && uploadProgress === 0 && (
+              <div className="relative group rounded-xl overflow-hidden border border-white/10 bg-[#0C0E14]">
+                <img src={media} alt="Preview" className="w-full h-auto max-h-[250px] object-cover" />
+                <button 
+                  onClick={() => setMedia(null)}
+                  className="absolute top-3 right-3 p-2 bg-black/60 hover:bg-red-500 rounded-full text-white backdrop-blur-sm transition-all opacity-0 group-hover:opacity-100 shadow-lg"
+                >
+                  <Trash2 size={16} />
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Selectors Row */}
+          <div className="flex gap-4">
+            <div className="flex-1 space-y-2.5">
+              <label className="block text-[12px] font-semibold text-[#E2E1EB] uppercase tracking-wider">
+                SELECT BRANCH
+              </label>
+              <div className="relative">
+                <select 
+                  value={branch}
+                  onChange={(e) => setBranch(e.target.value)}
+                  className="w-full h-[40px] bg-[#0C0E14] border border-white/10 rounded-lg pl-3.5 pr-9 text-[14px] text-white appearance-none outline-none focus:border-[#0033A0] transition-colors"
+                >
+                  <option value="" disabled className="text-[#8E909E]">Select...</option>
+                  <option value="cse">Computer Science</option>
+                  <option value="ece">Electronics</option>
+                  <option value="mech">Mechanical</option>
+                </select>
+                <ChevronDown size={14} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-white/50 pointer-events-none" />
+              </div>
+            </div>
+            <div className="flex-1 space-y-2.5">
+              <label className="block text-[12px] font-semibold text-[#E2E1EB] uppercase tracking-wider">
+                SELECT CLUB
+              </label>
+              <div className="relative">
+                <select 
+                  value={club}
+                  onChange={(e) => setClub(e.target.value)}
+                  className="w-full h-[40px] bg-[#0C0E14] border border-white/10 rounded-lg pl-3.5 pr-9 text-[14px] text-white appearance-none outline-none focus:border-[#0033A0] transition-colors"
+                >
+                  <option value="" disabled className="text-[#8E909E]">Select...</option>
+                  <option value="robotics">Robotics Club</option>
+                  <option value="gdsc">GDSC</option>
+                  <option value="music">Music Club</option>
+                </select>
+                <ChevronDown size={14} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-white/50 pointer-events-none" />
+              </div>
+            </div>
+          </div>
+
+          {/* General Toggle */}
+          <div className="bg-[#1A1B22] border border-white/5 rounded-lg p-3.5 flex justify-between items-center">
+            <div>
+              <h3 className="text-[14px] text-[#E2E1EB]">Post as General</h3>
+              <p className="text-[12px] text-[#C4C5D5] mt-0.5">Make this discussion visible to all departments</p>
+            </div>
+            <button 
+              onClick={() => setIsGeneral(!isGeneral)}
+              className={`w-11 h-6 rounded-full transition-colors relative flex items-center px-1 cursor-pointer ${isGeneral ? 'bg-[#0033A0]' : 'bg-white/10'}`}
+            >
+              <div className={`w-4 h-4 bg-white rounded-full transition-transform ${isGeneral ? 'translate-x-5' : 'translate-x-0'}`} />
+            </button>
           </div>
         </div>
 
         {/* Footer Actions */}
-        <div className="bg-[#0C0E14]/50 p-4 sm:p-6 border-t border-white/5 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <button className="p-2 text-blue-400 hover:bg-blue-400/10 rounded-full transition-colors" title="Attach Image">
-              <ImageIcon size={20} />
-            </button>
-            <button className="p-2 text-blue-400 hover:bg-blue-400/10 rounded-full transition-colors" title="Attach Link">
-              <Link2 size={20} />
-            </button>
-          </div>
-          
-          <div className="flex items-center gap-3">
-            <button 
-              onClick={onClose}
-              className="text-sm font-medium text-white/60 hover:text-white transition-colors px-4 py-2"
-            >
-              Cancel
-            </button>
-            <button 
-              onClick={() => {
-                alert('Discussion posted! (Mock)');
-                onClose();
-              }}
-              disabled={!title.trim() || !content.trim()}
-              className="bg-blue-600 hover:bg-blue-500 disabled:bg-white/5 disabled:text-white/30 text-white text-sm font-semibold px-6 py-2.5 rounded-xl transition-colors"
-            >
-              Post Discussion
-            </button>
-          </div>
+        <div className="bg-[#282A31] px-6 py-5 flex items-center justify-end gap-3 mt-auto border-t border-white/5">
+          <button 
+            onClick={onClose}
+            className="text-[14px] font-medium text-[#C4C5D5] hover:text-white transition-colors px-4 py-2"
+          >
+            Cancel
+          </button>
+          <button 
+            onClick={() => {
+              alert('Discussion posted! (Mock)');
+              onClose();
+            }}
+            disabled={!title.trim() || !content.trim()}
+            className="bg-[#003B95] hover:bg-[#002B73] disabled:bg-[#003B95]/50 disabled:text-white/50 text-white text-[14px] font-semibold px-6 py-2.5 rounded-lg transition-colors shadow-[inset_0px_1px_0px_0px_rgba(255,255,255,0.1)]"
+          >
+            Open Discussion
+          </button>
         </div>
 
       </div>
     </div>
   );
+
+  return createPortal(modalContent, document.body);
 }
