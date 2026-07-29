@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import Image from 'next/image';
+import Link from 'next/link';
 import { useAuth } from '../../../context/AuthContext';
 import { MessageSquare, ArrowUpCircle, Eye, Share2, MoreHorizontal, MapPin, Link as LinkIcon, Calendar } from 'lucide-react';
 
@@ -11,7 +12,6 @@ const MOCK_PROFILE_POSTS = [
   {
     id: 1,
     time: '2h ago',
-    action: 'posted a discussion',
     title: 'Advanced Quantum Computing: Error Correction Methods',
     content: 'Has anyone looked into the latest paper on surface codes for quantum error correction? The threshold improvements seem significant.',
     tags: ['Physics', 'Quantum'],
@@ -21,7 +21,6 @@ const MOCK_PROFILE_POSTS = [
   {
     id: 2,
     time: '3 days ago',
-    action: 'asked a question',
     title: 'Thermodynamics Lab Report Structuring',
     content: 'For the upcoming lab report on the Rankine cycle, are we supposed to include the raw data tables in the appendix or inline with the results?',
     tags: ['Mechanical', 'Lab'],
@@ -72,9 +71,9 @@ export default function ProfilePage() {
             </div>
           </div>
 
-          <button className="bg-white/10 hover:bg-white/20 text-white border border-white/10 text-sm font-semibold px-6 py-2.5 rounded-full transition-colors w-full sm:w-auto mt-2 sm:mt-0">
+          <Link href="/settings" className="bg-white/10 hover:bg-white/20 text-white border border-white/10 text-sm font-semibold px-6 py-2.5 rounded-full transition-colors w-full sm:w-auto mt-2 sm:mt-0 text-center">
             Edit Profile
-          </button>
+          </Link>
         </div>
 
         {/* Bio & Details */}
@@ -133,9 +132,7 @@ export default function ProfilePage() {
               
               <div className="flex justify-between items-start mb-3">
                 <div className="flex items-center gap-1.5 flex-wrap">
-                  <span className="text-xs text-white/40">{post.time}</span>
-                  <span className="text-xs text-white/30">•</span>
-                  <span className="text-[11px] text-white/50">{post.action}</span>
+                  <span className="text-xs text-[#8E909E]">{post.time}</span>
                 </div>
                 <button className="text-white/30 hover:text-white p-1 rounded-full hover:bg-white/5 transition-colors">
                   <MoreHorizontal size={18} />

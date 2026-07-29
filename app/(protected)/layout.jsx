@@ -4,6 +4,7 @@ import LeftSidebar from '../../components/layout/LeftSidebar';
 import RightSidebar from '../../components/layout/RightSidebar';
 import MobileNav from '../../components/layout/MobileNav';
 import MobileHeader from '../../components/layout/MobileHeader';
+import MobileFAB from '../../components/ui/MobileFAB';
 
 export default function ProtectedLayout({ children }) {
   return (
@@ -29,6 +30,9 @@ export default function ProtectedLayout({ children }) {
 
         {/* Mobile Navigation */}
         <MobileNav />
+
+        {/* Mobile Floating Action Button */}
+        <MobileFAB />
       </div>
     </ProtectedRoute>
   );

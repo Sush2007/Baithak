@@ -16,7 +16,6 @@ const MOCK_POSTS = [
       avatar: 'https://i.pravatar.cc/150?u=1'
     },
     time: '2h ago',
-    action: 'posted a discussion',
     title: 'Advanced Quantum Computing: Error Correction Methods',
     content: 'Has anyone looked into the latest paper on surface codes for quantum error correction? The threshold improvements seem significant.',
     media: {
@@ -35,7 +34,6 @@ const MOCK_POSTS = [
       avatar: 'https://i.pravatar.cc/150?u=2'
     },
     time: '4h ago',
-    action: 'asked a question',
     title: 'Understanding the Ethos in Modern Political Discourse',
     content: 'I am struggling to find good primary sources for my paper on rhetorical strategies in recent political debates. Any recommendations?',
     tags: ['Linguistics', 'Politics'],
@@ -50,7 +48,6 @@ const MOCK_POSTS = [
       avatar: 'https://i.pravatar.cc/150?u=3'
     },
     time: '6h ago',
-    action: 'shared a resource',
     title: 'Best Practices for React Server Components in 2024',
     content: 'Here is a comprehensive guide I wrote on when to use Server Components vs Client Components. Let me know your thoughts!',
     media: {
@@ -140,32 +137,23 @@ const DashboardPageClient = () => {
     <div className="max-w-3xl w-full mx-auto pb-20 md:pb-0">
       
       {/* Feed Header */}
-      <div className="relative md:sticky top-0 md:top-0 z-10 bg-[#0C0E14]/80 backdrop-blur-xl border-b border-white/5 pt-4 md:pt-4 pb-0 mt-4 md:mt-0">
-        <div className="flex items-center justify-between px-2 mb-4">
-          <h1 className="text-xl font-bold text-white tracking-tight">Main Feed</h1>
-          <div className="flex gap-2">
-            {FILTERS.map(filter => (
-              <button key={filter} className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-xs font-medium text-white/70 hover:text-white hover:bg-white/10 transition-colors">
-                {filter} <ChevronDown size={12} />
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Tabs */}
-        <div className="flex overflow-x-auto scrollbar-hide gap-6 px-2 border-b border-white/5">
+      <div className="relative md:sticky top-0 md:top-0 z-10 bg-[#0C0E14]/80 backdrop-blur-xl border-b border-white/5 pt-0 mt-0">
+        {/* Tabs - X Style */}
+        <div className="flex overflow-x-auto scrollbar-hide w-full border-b border-white/5">
           {TABS.map(tab => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
-              className={`pb-3 text-sm font-medium transition-colors whitespace-nowrap relative ${
-                activeTab === tab ? 'text-white' : 'text-white/50 hover:text-white/80'
-              }`}
+              className="flex-1 flex justify-center min-w-[100px] hover:bg-white/5 transition-colors"
             >
-              {tab}
-              {activeTab === tab && (
-                <div className="absolute bottom-0 left-0 w-full h-0.5 bg-blue-500 rounded-t-full" />
-              )}
+              <div className="relative py-4">
+                <span className={`text-[15px] font-bold ${activeTab === tab ? 'text-white' : 'text-[#8E909E]'}`}>
+                  {tab}
+                </span>
+                {activeTab === tab && (
+                  <div className="absolute bottom-0 left-0 w-full h-1 bg-[#1d9bf0] rounded-t-full" />
+                )}
+              </div>
             </button>
           ))}
         </div>
@@ -177,19 +165,17 @@ const DashboardPageClient = () => {
           <article key={post.id} className="bg-[#1A1B22] border border-white/5 rounded-2xl p-4 sm:p-5 hover:border-white/10 transition-colors cursor-pointer group">
             
             {/* Post Header */}
-            <div className="flex justify-between items-start mb-3">
-              <div className="flex gap-3">
+            <div className="flex justify-between items-center mb-3">
+              <div className="flex items-center gap-3">
                 <div className="relative w-10 h-10 rounded-full overflow-hidden shrink-0">
                   <Image src={post.author.avatar} alt={post.author.name} fill className="object-cover" />
                 </div>
                 <div>
                   <div className="flex items-center gap-1.5 flex-wrap">
-                    <span className="font-semibold text-sm text-white">{post.author.name}</span>
-                    <span className="text-xs text-white/40">{post.author.handle}</span>
-                    <span className="text-xs text-white/30">•</span>
-                    <span className="text-xs text-white/40">{post.time}</span>
+                    <span className="font-bold text-[15px] text-white hover:underline cursor-pointer">{post.author.name}</span>
+                    <span className="text-[15px] text-[#8E909E]">{post.author.handle}</span>
+                    <span className="text-[15px] text-[#8E909E]">· {post.time}</span>
                   </div>
-                  <span className="text-[11px] text-white/50">{post.action}</span>
                 </div>
               </div>
               <div className="relative">

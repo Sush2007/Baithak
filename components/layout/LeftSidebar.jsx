@@ -30,8 +30,8 @@ const LeftSidebar = () => {
   return (
     <aside className="hidden md:flex flex-col h-screen sticky top-0 pt-0 pb-4 pr-4 border-r border-white/5">
       {/* Logo */}
-      <div className="px-4 mb-0.5 mt-2">
-        <Image src="/logo.png" alt="Baithak" width={110} height={35} className="object-contain" priority />
+      <div className="px-4 mb-8 mt-6 shrink-0">
+        <Image src="/logo.png" alt="Baithak" width={120} height={32} className="object-contain" priority />
       </div>
 
       {/* User Snippet */}
