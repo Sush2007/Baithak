@@ -12,11 +12,15 @@ const supabase = createClient(
 // Instead we'll use ANON key and if RLS blocks, we might need a service role key.
 // For now, let's just proceed with standard client.
 
-webpush.setVapidDetails(
-  process.env.VAPID_SUBJECT,
-  process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY,
-  process.env.VAPID_PRIVATE_KEY
-);
+if (process.env.VAPID_SUBJECT && process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
+  webpush.setVapidDetails(
+    process.env.VAPID_SUBJECT,
+    process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY,
+    process.env.VAPID_PRIVATE_KEY
+  );
+} else {
+  console.warn("VAPID keys are missing. Push notifications may not work.");
+}
 
 export async function POST(request) {
   try {
