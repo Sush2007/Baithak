@@ -16,13 +16,18 @@ try {
   console.warn('Failed to initialize Upstash Redis Ratelimit:', error);
 }
 
+import { updateSession } from './lib/supabaseMiddleware';
+
 export async function middleware(request) {
-  // If Redis is not configured, just bypass (useful for some local dev environments without .env)
-  if (!ratelimit) {
-    return NextResponse.next();
+  // 1. Run the Supabase Auth update logic
+  const authResponse = await updateSession(request);
+
+  // If Redis is not configured or this is not an API route, just return the auth response
+  if (!ratelimit || !request.nextUrl.pathname.startsWith('/api')) {
+    return authResponse;
   }
 
-  // Extract the IP address from the request (Vercel sets x-forwarded-for)
+  // Extract the IP address from the request
   const forwardedFor = request.headers.get('x-forwarded-for');
   const ip = request.ip ?? (forwardedFor ? forwardedFor.split(',')[0].trim() : '127.0.0.1');
 
@@ -32,7 +37,7 @@ export async function middleware(request) {
     limitResult = await ratelimit.limit(`ratelimit_${ip}`);
   } catch (err) {
     console.error('Redis Rate Limit Exception, failing open:', err);
-    return NextResponse.next(); // Fail open: do not block users if Redis goes down
+    return authResponse; // Fail open
   }
   const { success, limit, reset, remaining } = limitResult;
 
@@ -51,21 +56,24 @@ export async function middleware(request) {
     );
   }
 
-  // Allow the request to proceed
-  const res = NextResponse.next();
-  
   // Add rate limit headers to successful requests for client visibility
-  res.headers.set('X-RateLimit-Limit', limit.toString());
-  res.headers.set('X-RateLimit-Remaining', remaining.toString());
-  res.headers.set('X-RateLimit-Reset', reset.toString());
+  authResponse.headers.set('X-RateLimit-Limit', limit.toString());
+  authResponse.headers.set('X-RateLimit-Remaining', remaining.toString());
+  authResponse.headers.set('X-RateLimit-Reset', reset.toString());
 
-  return res;
+  return authResponse;
 }
 
 // Configure which paths the middleware should run on
 export const config = {
-  // Only protect API routes. Rate limiting page routes breaks RSC payloads.
   matcher: [
-    '/api/:path*'
+    /*
+     * Match all request paths except for the ones starting with:
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico (favicon file)
+     * Feel free to modify this pattern to include more paths.
+     */
+    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 };

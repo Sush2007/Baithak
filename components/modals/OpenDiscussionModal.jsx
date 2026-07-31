@@ -3,41 +3,117 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { X, ChevronDown, Image as ImageIcon, Film, Trash2, Loader2, UploadCloud } from 'lucide-react';
+import { supabase } from '../../lib/supabaseClient';
+import { useAuth } from '../../context/AuthContext';
 
 export default function OpenDiscussionModal({ isOpen, onClose }) {
+  const { user } = useAuth();
   const [mounted, setMounted] = useState(false);
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [branch, setBranch] = useState('');
   const [club, setClub] = useState('');
   const [isGeneral, setIsGeneral] = useState(false);
-  const [media, setMedia] = useState(null);
+  const [mediaFile, setMediaFile] = useState(null);
+  const [mediaPreview, setMediaPreview] = useState(null);
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleMediaUpload = (e) => {
     const file = e.target.files[0];
     if (!file) return;
     
-    // Simulate professional upload & compression progress
-    setUploadProgress(1);
+    // Check file size (e.g. max 50MB)
+    if (file.size > 50 * 1024 * 1024) {
+      alert("File size exceeds 50MB limit.");
+      return;
+    }
+
+    setMediaFile(file);
+    setMediaPreview(URL.createObjectURL(file));
+  };
+
+  const handleSubmit = async () => {
+    if (!title.trim() || !content.trim() || !user) return;
     
-    const interval = setInterval(() => {
-      setUploadProgress(prev => {
-        if (prev >= 95) {
-          clearInterval(interval);
-          setTimeout(() => {
-            setUploadProgress(100);
-            setTimeout(() => {
-              setMedia(URL.createObjectURL(file));
-              setUploadProgress(0);
-            }, 400);
-          }, 600);
-          return prev;
+    setIsSubmitting(true);
+    let finalMediaUrl = null;
+    let finalMediaType = null;
+
+    try {
+      if (mediaFile) {
+        setUploadProgress(10);
+        
+        // 1. Get Session Token
+        const { data: sessionData } = await supabase.auth.getSession();
+        const token = sessionData?.session?.access_token;
+        if (!token) throw new Error("Not authenticated");
+
+        // 2. Request Presigned URL
+        const extension = mediaFile.name.split('.').pop();
+        const filename = `users/${user.id}/posts/${Date.now()}.${extension}`;
+        const res = await fetch(`/api/v1/storage/presigned-url?filename=${encodeURIComponent(filename)}&content_type=${encodeURIComponent(mediaFile.type)}`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        if (!res.ok) {
+          const errorData = await res.json();
+          throw new Error(errorData.error || "Failed to get upload URL");
         }
-        // Jump by random chunks to look realistic
-        return prev + Math.floor(Math.random() * 15) + 5;
-      });
-    }, 400);
+        const { presigned_url, public_url } = await res.json();
+        setUploadProgress(50);
+
+        // 3. Upload to R2
+        const uploadRes = await fetch(presigned_url, {
+          method: 'PUT',
+          headers: { 'Content-Type': mediaFile.type },
+          body: mediaFile
+        });
+
+        if (!uploadRes.ok) throw new Error("Failed to upload file to storage");
+        
+        finalMediaUrl = public_url;
+        finalMediaType = mediaFile.type.startsWith('video/') ? 'video' : 'image';
+        setUploadProgress(90);
+      }
+
+      const tags = [];
+      if (branch) tags.push(branch);
+      if (club) tags.push(club);
+      if (isGeneral) tags.push('general');
+
+      const { error } = await supabase.from('posts').insert([
+        {
+          author_id: user.id,
+          title: title.trim(),
+          content: content.trim(),
+          tags,
+          media_url: finalMediaUrl,
+          media_type: finalMediaType
+        }
+      ]);
+
+      if (error) throw error;
+      
+      setTitle('');
+      setContent('');
+      setBranch('');
+      setClub('');
+      setMediaFile(null);
+      setMediaPreview(null);
+      setIsGeneral(false);
+      setUploadProgress(100);
+      onClose();
+      
+      window.location.reload();
+      
+    } catch (err) {
+      console.error('Error creating post:', err.message);
+      alert(`Failed to post discussion: ${err.message}`);
+    } finally {
+      setIsSubmitting(false);
+      setUploadProgress(0);
+    }
   };
 
   useEffect(() => {
@@ -105,11 +181,11 @@ export default function OpenDiscussionModal({ isOpen, onClose }) {
             <label className="block text-[12px] font-semibold text-[#E2E1EB] uppercase tracking-wider">
               UPLOAD MEDIA (OPTIONAL)
             </label>
-            {!media && uploadProgress === 0 && (
+            {!mediaPreview && uploadProgress === 0 && (
               <div className="flex gap-3">
                 <label className="flex items-center gap-2 px-4 py-3 bg-[#0C0E14] border border-white/10 border-dashed rounded-lg text-sm text-white/70 hover:bg-white/5 hover:text-white hover:border-white/30 cursor-pointer transition-all w-full justify-center">
                   <UploadCloud size={18} className="text-[#0033A0]" />
-                  <span className="font-medium">Upload Image or Video (Auto-compresses)</span>
+                  <span className="font-medium">Upload Image or Video (Max 50MB)</span>
                   <input type="file" accept="image/*,video/*" className="hidden" onChange={handleMediaUpload} />
                 </label>
               </div>
@@ -136,11 +212,15 @@ export default function OpenDiscussionModal({ isOpen, onClose }) {
               </div>
             )}
 
-            {media && uploadProgress === 0 && (
+            {mediaPreview && uploadProgress === 0 && (
               <div className="relative group rounded-xl overflow-hidden border border-white/10 bg-[#0C0E14]">
-                <img src={media} alt="Preview" className="w-full h-auto max-h-[250px] object-cover" />
+                {mediaFile?.type.startsWith('video/') ? (
+                  <video src={mediaPreview} controls className="w-full h-auto max-h-[250px] object-cover" />
+                ) : (
+                  <img src={mediaPreview} alt="Preview" className="w-full h-auto max-h-[250px] object-cover" />
+                )}
                 <button 
-                  onClick={() => setMedia(null)}
+                  onClick={() => { setMediaPreview(null); setMediaFile(null); }}
                   className="absolute top-3 right-3 p-2 bg-black/60 hover:bg-red-500 rounded-full text-white backdrop-blur-sm transition-all opacity-0 group-hover:opacity-100 shadow-lg"
                 >
                   <Trash2 size={16} />
@@ -213,14 +293,15 @@ export default function OpenDiscussionModal({ isOpen, onClose }) {
             Cancel
           </button>
           <button 
-            onClick={() => {
-              alert('Discussion posted! (Mock)');
-              onClose();
-            }}
-            disabled={!title.trim() || !content.trim()}
-            className="bg-[#003B95] hover:bg-[#002B73] disabled:bg-[#003B95]/50 disabled:text-white/50 text-white text-[14px] font-semibold px-6 py-2.5 rounded-lg transition-colors shadow-[inset_0px_1px_0px_0px_rgba(255,255,255,0.1)]"
+            onClick={handleSubmit}
+            disabled={!title.trim() || !content.trim() || isSubmitting}
+            className="flex items-center gap-2 bg-[#003B95] hover:bg-[#002B73] disabled:bg-[#003B95]/50 disabled:text-white/50 text-white text-[14px] font-semibold px-6 py-2.5 rounded-lg transition-colors shadow-[inset_0px_1px_0px_0px_rgba(255,255,255,0.1)]"
           >
-            Open Discussion
+            {isSubmitting ? (
+              <><Loader2 size={16} className="animate-spin" /> Posting...</>
+            ) : (
+              "Open Discussion"
+            )}
           </button>
         </div>
 

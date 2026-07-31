@@ -16,14 +16,12 @@ export default function AboutUsPage() {
           It serves as a central hub for academic discussions, resource sharing, and community building.
         </p>
         <div className="mb-6">
-          <a 
-            href="https://www.baithakpe.com/about" 
-            target="_blank" 
-            rel="noopener noreferrer"
+          <Link 
+            href="/" 
             className="text-sm text-[#8FAAFF] hover:text-white transition-colors"
           >
-            Know More
-          </a>
+            Go Back to Feed
+          </Link>
         </div>
         <p className="text-xs text-white/40">Version 1.0.0 (Beta)</p>
       </div>

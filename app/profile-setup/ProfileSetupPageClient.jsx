@@ -207,7 +207,7 @@ const ProfileSetupPageClient = () => {
       if (selectedFile) {
         setIsUploading(true);
         const fileExt = selectedFile.name.split('.').pop();
-        const uniqueFilename = `avatars/user_uploaded/${user.id}-${Date.now()}.${fileExt}`;
+        const uniqueFilename = `users/${user.id}/avatars/${Date.now()}.${fileExt}`;
 
         const presignedRes = await fetch(
           `/api/v1/storage/presigned-url?filename=${encodeURIComponent(uniqueFilename)}&content_type=${encodeURIComponent(selectedFile.type)}`,

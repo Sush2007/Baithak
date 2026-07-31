@@ -8,30 +8,41 @@ import { MessageSquare, ArrowUpCircle, Eye, Share2, MoreHorizontal, MapPin, Link
 
 const TABS = ['Discussions', 'Replies', 'Achievements', 'Activity'];
 
-const MOCK_PROFILE_POSTS = [
-  {
-    id: 1,
-    time: '2h ago',
-    title: 'Advanced Quantum Computing: Error Correction Methods',
-    content: 'Has anyone looked into the latest paper on surface codes for quantum error correction? The threshold improvements seem significant.',
-    tags: ['Physics', 'Quantum'],
-    isHot: true,
-    stats: { replies: 42, upvotes: 156, views: '1.2k' }
-  },
-  {
-    id: 2,
-    time: '3 days ago',
-    title: 'Thermodynamics Lab Report Structuring',
-    content: 'For the upcoming lab report on the Rankine cycle, are we supposed to include the raw data tables in the appendix or inline with the results?',
-    tags: ['Mechanical', 'Lab'],
-    isHot: false,
-    stats: { replies: 5, upvotes: 12, views: '84' }
-  }
-];
+import { formatDistanceToNow } from 'date-fns';
+import { supabase } from '../../../lib/supabaseClient';
 
 export default function ProfilePage() {
   const { profile, user } = useAuth();
   const [activeTab, setActiveTab] = useState('Discussions');
+  const [posts, setPosts] = useState([]);
+  const [isLoadingPosts, setIsLoadingPosts] = useState(true);
+
+  React.useEffect(() => {
+    async function fetchPosts() {
+      if (!profile?.id) return;
+      setIsLoadingPosts(true);
+      try {
+        const { data, error } = await supabase
+          .from('posts')
+          .select(`
+            *,
+            profiles(display_name, username, avatar_url),
+            likes(count),
+            comments(count)
+          `)
+          .eq('author_id', profile.id)
+          .order('created_at', { ascending: false });
+
+        if (error) throw error;
+        setPosts(data || []);
+      } catch (err) {
+        console.error('Error fetching user posts:', err);
+      } finally {
+        setIsLoadingPosts(false);
+      }
+    }
+    fetchPosts();
+  }, [profile?.id]);
 
   return (
     <div className="max-w-3xl w-full mx-auto pb-20 md:pb-0">
@@ -79,26 +90,35 @@ export default function ProfilePage() {
         {/* Bio & Details */}
         <div className="mb-8">
           <p className="text-sm text-white/80 leading-relaxed max-w-2xl mb-4">
-            Exploring the intersections of distributed systems and artificial intelligence. 
-            Passionate about open-source and helping juniors with OS concepts. 
-            Former TA for CS201.
+            {profile?.bio || 'No bio provided yet.'}
           </p>
           
           <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-xs text-white/50">
             <span className="flex items-center gap-1.5"><MapPin size={14} /> VSSUT Burla, Odisha</span>
-            <span className="flex items-center gap-1.5"><LinkIcon size={14} /> <a href="#" className="text-blue-400 hover:underline">github.com/alexrivers</a></span>
-            <span className="flex items-center gap-1.5"><Calendar size={14} /> Joined August 2024</span>
+            {profile?.instagram_url && (
+              <span className="flex items-center gap-1.5">
+                <LinkIcon size={14} /> 
+                <a href={profile.instagram_url} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline">Instagram</a>
+              </span>
+            )}
+            {profile?.linkedin_url && (
+              <span className="flex items-center gap-1.5">
+                <LinkIcon size={14} /> 
+                <a href={profile.linkedin_url} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline">LinkedIn</a>
+              </span>
+            )}
+            <span className="flex items-center gap-1.5"><Calendar size={14} /> Joined {profile?.created_at ? new Date(profile.created_at).toLocaleDateString('en-US', { month: 'long', year: 'numeric'}) : 'recently'}</span>
           </div>
         </div>
 
         {/* Stats Row */}
         <div className="flex items-center justify-between sm:justify-start sm:gap-8 mb-8 pb-8 border-b border-white/5">
           <div className="flex flex-col">
-            <span className="text-xl font-bold text-white">42</span>
+            <span className="text-xl font-bold text-white">{posts.length}</span>
             <span className="text-xs text-white/50 uppercase tracking-wider font-medium">Discussions</span>
           </div>
           <div className="flex flex-col">
-            <span className="text-xl font-bold text-white">156</span>
+            <span className="text-xl font-bold text-white">0</span>
             <span className="text-xs text-white/50 uppercase tracking-wider font-medium">Replies</span>
           </div>
           <div className="flex flex-col">
@@ -127,67 +147,82 @@ export default function ProfilePage() {
 
         {/* Profile Feed */}
         <div className="space-y-4">
-          {MOCK_PROFILE_POSTS.map(post => (
-            <article key={post.id} className="bg-[#1A1B22] border border-white/5 rounded-2xl p-4 sm:p-5 hover:border-white/10 transition-colors cursor-pointer group">
-              
-              <div className="flex justify-between items-start mb-3">
-                <div className="flex items-center gap-1.5 flex-wrap">
-                  <span className="text-xs text-[#8E909E]">{post.time}</span>
-                </div>
-                <button className="text-white/30 hover:text-white p-1 rounded-full hover:bg-white/5 transition-colors">
-                  <MoreHorizontal size={18} />
-                </button>
-              </div>
-
-              <div className="space-y-3">
+          {isLoadingPosts ? (
+            <div className="flex items-center justify-center py-10">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+            </div>
+          ) : posts.length === 0 ? (
+            <div className="text-center py-10 text-white/50">No discussions posted yet.</div>
+          ) : (
+            posts.map(post => (
+              <article key={post.id} className="bg-[#1A1B22] border border-white/5 rounded-2xl p-4 sm:p-5 hover:border-white/10 transition-colors cursor-pointer group">
                 
-                <div className="flex items-center gap-2 flex-wrap">
-                  {post.isHot && (
-                    <span className="bg-accent-yellow text-[#1A1B22] text-[9px] font-bold px-2 py-0.5 rounded uppercase tracking-wider">
-                      Hot Topic
+                <div className="flex justify-between items-start mb-3">
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className="text-xs text-[#8E909E]">
+                      {formatDistanceToNow(new Date(post.created_at), { addSuffix: true })}
                     </span>
+                  </div>
+                  <button className="text-white/30 hover:text-white p-1 rounded-full hover:bg-white/5 transition-colors">
+                    <MoreHorizontal size={18} />
+                  </button>
+                </div>
+
+                <div className="space-y-3">
+                  
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {post.tags?.map(tag => (
+                      <span key={tag} className="text-[10px] text-blue-400 font-medium bg-blue-500/10 px-2 py-0.5 rounded uppercase tracking-wider">#{tag}</span>
+                    ))}
+                  </div>
+
+                  <h2 className="text-base font-bold text-white/90 group-hover:text-blue-400 transition-colors">
+                    {post.title}
+                  </h2>
+                  <p className="text-sm text-white/60 leading-relaxed line-clamp-3 whitespace-pre-wrap">
+                    {post.content}
+                  </p>
+                  
+                  {post.media_url && (
+                    <div className="mt-3 rounded-xl overflow-hidden border border-white/10 bg-[#0C0E14]">
+                      {post.media_type === 'video' ? (
+                        <video src={post.media_url} controls className="w-full max-h-[300px] object-contain" />
+                      ) : (
+                        <img src={post.media_url} alt="Post media" className="w-full max-h-[300px] object-cover" />
+                      )}
+                    </div>
                   )}
-                  {post.tags.map(tag => (
-                    <span key={tag} className="text-[10px] text-blue-400 font-medium">#{tag}</span>
-                  ))}
+
+                  <div className="flex items-center justify-between sm:justify-start sm:gap-6 pt-3 border-t border-white/5 mt-4">
+                    <button className="flex items-center gap-1.5 text-xs font-medium text-white/50 hover:text-blue-400 transition-colors group/btn">
+                      <div className="p-1.5 rounded-full group-hover/btn:bg-blue-400/10 transition-colors">
+                        <MessageSquare size={16} />
+                      </div>
+                      {post.comments?.[0]?.count || 0} Replies
+                    </button>
+                    <button className="flex items-center gap-1.5 text-xs font-medium text-white/50 hover:text-green-400 transition-colors group/btn">
+                      <div className="p-1.5 rounded-full group-hover/btn:bg-green-400/10 transition-colors">
+                        <ArrowUpCircle size={16} />
+                      </div>
+                      {post.likes?.[0]?.count || 0}
+                    </button>
+                    <button className="flex items-center gap-1.5 text-xs font-medium text-white/50 hover:text-white/80 transition-colors group/btn">
+                      <div className="p-1.5 rounded-full group-hover/btn:bg-white/10 transition-colors">
+                        <Eye size={16} />
+                      </div>
+                      --
+                    </button>
+                    <button className="flex items-center gap-1.5 text-xs font-medium text-white/50 hover:text-white/80 transition-colors group/btn ml-auto">
+                      <div className="p-1.5 rounded-full group-hover/btn:bg-white/10 transition-colors">
+                        <Share2 size={16} />
+                      </div>
+                    </button>
+                  </div>
+
                 </div>
-
-                <h2 className="text-base font-bold text-white/90 group-hover:text-blue-400 transition-colors">
-                  {post.title}
-                </h2>
-                <p className="text-sm text-white/60 leading-relaxed line-clamp-3">
-                  {post.content}
-                </p>
-
-                <div className="flex items-center justify-between sm:justify-start sm:gap-6 pt-3 border-t border-white/5 mt-4">
-                  <button className="flex items-center gap-1.5 text-xs font-medium text-white/50 hover:text-blue-400 transition-colors group/btn">
-                    <div className="p-1.5 rounded-full group-hover/btn:bg-blue-400/10 transition-colors">
-                      <MessageSquare size={16} />
-                    </div>
-                    {post.stats.replies} Replies
-                  </button>
-                  <button className="flex items-center gap-1.5 text-xs font-medium text-white/50 hover:text-green-400 transition-colors group/btn">
-                    <div className="p-1.5 rounded-full group-hover/btn:bg-green-400/10 transition-colors">
-                      <ArrowUpCircle size={16} />
-                    </div>
-                    {post.stats.upvotes}
-                  </button>
-                  <button className="flex items-center gap-1.5 text-xs font-medium text-white/50 hover:text-white/80 transition-colors group/btn">
-                    <div className="p-1.5 rounded-full group-hover/btn:bg-white/10 transition-colors">
-                      <Eye size={16} />
-                    </div>
-                    {post.stats.views}
-                  </button>
-                  <button className="flex items-center gap-1.5 text-xs font-medium text-white/50 hover:text-white/80 transition-colors group/btn ml-auto">
-                    <div className="p-1.5 rounded-full group-hover/btn:bg-white/10 transition-colors">
-                      <Share2 size={16} />
-                    </div>
-                  </button>
-                </div>
-
-              </div>
-            </article>
-          ))}
+              </article>
+            ))
+          )}
         </div>
 
       </div>

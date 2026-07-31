@@ -5,6 +5,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '../../context/AuthContext';
+import { useNotifications } from '../../hooks/useNotifications';
 import { 
   Home, User, Bell, Bookmark, Calendar, 
   Settings, HelpCircle, Info, PlusCircle, Search, BadgeCheck
@@ -25,6 +26,7 @@ const NAV_ITEMS = [
 const LeftSidebar = () => {
   const pathname = usePathname();
   const { user, profile } = useAuth();
+  const { unreadCount } = useNotifications();
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   return (
@@ -86,7 +88,12 @@ const LeftSidebar = () => {
               {isActive && (
                 <div className="absolute right-0 top-1/2 -translate-y-1/2 w-[3px] h-6 bg-[#8FAAFF] rounded-l-full shadow-[0_0_8px_rgba(143,170,255,0.8)]" />
               )}
-              <item.icon size={20} className={isActive ? 'text-[#8FAAFF]' : 'group-hover:scale-110 transition-transform'} />
+              <div className="relative">
+                <item.icon size={20} className={isActive ? 'text-[#8FAAFF]' : 'group-hover:scale-110 transition-transform'} />
+                {item.label === 'Notifications' && unreadCount > 0 && (
+                  <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-500 rounded-full border border-[#0C0E14]" />
+                )}
+              </div>
               <span className="text-[14px]">{item.label}</span>
             </Link>
           );

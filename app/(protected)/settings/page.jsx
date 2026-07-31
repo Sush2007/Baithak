@@ -1,13 +1,34 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
-import { User, Bell, Shield, Award, AlertTriangle, Edit2, CheckCircle2, ChevronRight, LogOut, Trash2 } from 'lucide-react';
+import { User, Bell, Shield, Award, AlertTriangle, Edit2, CheckCircle2, ChevronRight, LogOut, Trash2, Link as LinkIcon, Save } from 'lucide-react';
 import { useAuth } from '../../../context/AuthContext';
+import { supabase } from '../../../lib/supabaseClient';
+import { usePushNotifications } from '../../../hooks/usePushNotifications';
 
 export default function SettingsPage() {
   const { profile, user } = useAuth();
+  const { isSupported, isSubscribed, isLoading, subscribe, unsubscribe } = usePushNotifications();
   
+  const [isEditing, setIsEditing] = useState(false);
+  const [formData, setFormData] = useState({
+    bio: '',
+    instagram_url: '',
+    linkedin_url: ''
+  });
+  const [isSaving, setIsSaving] = useState(false);
+
+  useEffect(() => {
+    if (profile) {
+      setFormData({
+        bio: profile.bio || 'Exploring the intersections of distributed systems and artificial intelligence.',
+        instagram_url: profile.instagram_url || '',
+        linkedin_url: profile.linkedin_url || ''
+      });
+    }
+  }, [profile]);
+
   const [toggles, setToggles] = useState({
     replies: true,
     bestAnswer: true,
@@ -18,6 +39,52 @@ export default function SettingsPage() {
   });
 
   const handleToggle = (key) => setToggles(prev => ({ ...prev, [key]: !prev[key] }));
+
+  const handleSaveProfile = async () => {
+    if (!user) return;
+    setIsSaving(true);
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          bio: formData.bio,
+          instagram_url: formData.instagram_url,
+          linkedin_url: formData.linkedin_url
+        })
+        .eq('id', user.id);
+      
+      if (error) throw error;
+      setIsEditing(false);
+      // Optional: alert success or rely on local state
+    } catch (error) {
+      console.error('Error updating profile:', error);
+      alert('Failed to update profile');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    window.location.href = '/';
+  };
+
+  const handleDeleteAccount = async () => {
+    if (confirm("Are you sure you want to delete your account? This action cannot be undone.")) {
+      // In a real app with RLS, we'd need an admin function. 
+      // For now, clear their profile data and log them out to simulate deletion securely.
+      if (user) {
+        await supabase.from('profiles').update({
+          display_name: 'Deleted User',
+          username: `deleted_${Date.now()}`,
+          bio: '',
+          avatar_url: null
+        }).eq('id', user.id);
+      }
+      await supabase.auth.signOut();
+      window.location.href = '/';
+    }
+  };
 
   const ToggleSwitch = ({ checked, onChange }) => (
     <button 
@@ -44,9 +111,24 @@ export default function SettingsPage() {
             <User size={18} className="text-blue-400" />
             <h2 className="text-base font-semibold">Account</h2>
           </div>
-          <button className="text-xs font-medium bg-white/5 hover:bg-white/10 text-white px-3 py-1.5 rounded-lg border border-white/10 transition-colors">
-            Edit Profile
-          </button>
+          {isEditing ? (
+            <button 
+              onClick={handleSaveProfile}
+              disabled={isSaving}
+              className="flex items-center gap-2 text-xs font-medium bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg border border-blue-500 transition-colors disabled:opacity-50"
+            >
+              <Save size={14} />
+              {isSaving ? 'Saving...' : 'Save Changes'}
+            </button>
+          ) : (
+            <button 
+              onClick={() => setIsEditing(true)}
+              className="flex items-center gap-2 text-xs font-medium bg-white/5 hover:bg-white/10 text-white px-3 py-1.5 rounded-lg border border-white/10 transition-colors"
+            >
+              <Edit2 size={14} />
+              Edit Profile
+            </button>
+          )}
         </div>
         
         <div className="space-y-6">
@@ -104,10 +186,39 @@ export default function SettingsPage() {
             <div className="space-y-1.5">
               <label className="text-[11px] font-bold text-[#8E909E] uppercase tracking-wider pl-1">Bio</label>
               <textarea 
-                disabled
+                disabled={!isEditing}
                 rows={3}
-                defaultValue="Exploring the intersections of distributed systems and artificial intelligence."
-                className="w-full bg-[#0C0E14] border border-white/5 rounded-xl px-4 py-2.5 text-sm text-white/50 outline-none resize-none"
+                value={formData.bio}
+                onChange={(e) => setFormData({...formData, bio: e.target.value})}
+                className="w-full bg-[#0C0E14] border border-white/5 rounded-xl px-4 py-2.5 text-sm text-white/90 outline-none resize-none focus:border-white/20 disabled:text-white/50"
+              />
+            </div>
+            
+            <div className="space-y-1.5">
+              <label className="text-[11px] font-bold text-[#8E909E] uppercase tracking-wider pl-1 flex items-center gap-1">
+                <LinkIcon size={12} /> Instagram Link
+              </label>
+              <input 
+                type="url" 
+                disabled={!isEditing}
+                placeholder="https://instagram.com/yourusername"
+                value={formData.instagram_url}
+                onChange={(e) => setFormData({...formData, instagram_url: e.target.value})}
+                className="w-full bg-[#0C0E14] border border-white/5 rounded-xl px-4 py-2.5 text-sm text-white/90 outline-none focus:border-white/20 disabled:text-white/50"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-[11px] font-bold text-[#8E909E] uppercase tracking-wider pl-1 flex items-center gap-1">
+                <LinkIcon size={12} /> LinkedIn Link
+              </label>
+              <input 
+                type="url" 
+                disabled={!isEditing}
+                placeholder="https://linkedin.com/in/yourusername"
+                value={formData.linkedin_url}
+                onChange={(e) => setFormData({...formData, linkedin_url: e.target.value})}
+                className="w-full bg-[#0C0E14] border border-white/5 rounded-xl px-4 py-2.5 text-sm text-white/90 outline-none focus:border-white/20 disabled:text-white/50"
               />
             </div>
           </div>
@@ -157,18 +268,6 @@ export default function SettingsPage() {
         </button>
       </section>
 
-      {/* Privacy & Security */}
-      <section className="bg-[#1A1B22] border border-white/5 rounded-2xl p-5 md:p-6 shadow-sm">
-         <div className="flex items-center gap-2 mb-6 text-white">
-          <Shield size={18} className="text-purple-400" />
-          <h2 className="text-base font-semibold">Privacy & Security</h2>
-        </div>
-        <button className="w-full bg-[#0C0E14] border border-white/5 hover:border-white/10 rounded-xl px-4 py-3 text-sm text-left text-white transition-colors flex items-center justify-between group">
-          <span className="font-medium">Change Password</span>
-          <ChevronRight size={16} className="text-[#8E909E] group-hover:text-white transition-colors" />
-        </button>
-      </section>
-
       {/* 🔔 Notifications */}
       <section className="bg-[#1A1B22] border border-white/5 rounded-2xl p-5 md:p-6 shadow-sm">
         <div className="flex items-center gap-2 mb-6 text-white">
@@ -177,15 +276,31 @@ export default function SettingsPage() {
         </div>
         
         <div className="space-y-1">
+          {/* Push Notifications Toggle */}
+          {isSupported && (
+            <div className="flex items-center justify-between py-4 border-b border-white/5 bg-[#1d9bf0]/5 rounded-xl px-4 mb-2">
+              <div>
+                <span className="text-sm font-bold text-white block">Device Push Notifications</span>
+                <span className="text-xs text-white/50">Receive alerts even when the app is closed</span>
+              </div>
+              <button 
+                onClick={isSubscribed ? unsubscribe : subscribe}
+                disabled={isLoading}
+                className={`px-4 py-1.5 rounded-full text-xs font-bold transition-colors disabled:opacity-50 ${isSubscribed ? 'bg-red-500/10 text-red-500 hover:bg-red-500/20' : 'bg-[#1d9bf0] text-white hover:bg-[#1a8cd8]'}`}
+              >
+                {isLoading ? 'Wait...' : isSubscribed ? 'Disable' : 'Enable'}
+              </button>
+            </div>
+          )}
+
           {[
             { id: 'replies', label: 'Replies to My Discussions' },
             { id: 'bestAnswer', label: 'Best Answer Selected' },
             { id: 'honorPoints', label: 'Honor Points Earned' },
             { id: 'mentions', label: 'Mentions (@username)' },
             { id: 'verification', label: 'Verification Updates' },
-            { id: 'platform', label: 'Platform Announcements' },
           ].map((item, idx) => (
-            <div key={item.id} className={`flex items-center justify-between py-3 ${idx !== 5 ? 'border-b border-white/5' : ''}`}>
+            <div key={item.id} className={`flex items-center justify-between py-3 ${idx !== 4 ? 'border-b border-white/5' : ''}`}>
               <span className="text-sm text-white/90">{item.label}</span>
               <ToggleSwitch checked={toggles[item.id]} onChange={() => handleToggle(item.id)} />
             </div>
@@ -229,20 +344,21 @@ export default function SettingsPage() {
         </div>
       </section>
 
-      {/* ⚠️ Danger Zone */}
+      {/* Danger Zone Actions */}
       <section className="bg-red-500/5 border border-red-500/10 rounded-2xl p-5 md:p-6 shadow-sm">
-        <div className="flex items-center gap-2 mb-6 text-red-400">
-          <AlertTriangle size={18} />
-          <h2 className="text-base font-semibold">Danger Zone</h2>
-        </div>
-        
         <div className="space-y-3">
-          <button className="w-full bg-[#0C0E14]/80 border border-red-500/10 hover:bg-red-500/10 rounded-xl px-4 py-3 text-sm text-left text-red-400 transition-colors flex items-center gap-3">
+          <button 
+            onClick={handleLogout}
+            className="w-full bg-[#0C0E14]/80 border border-red-500/10 hover:bg-red-500/10 rounded-xl px-4 py-3 text-sm text-left text-red-400 transition-colors flex items-center gap-3"
+          >
             <LogOut size={16} />
             <span className="font-medium">Log Out</span>
           </button>
           
-          <button className="w-full bg-[#0C0E14]/80 border border-red-500/20 hover:bg-red-500 text-red-400 hover:text-white rounded-xl px-4 py-3 text-sm text-left transition-colors flex items-center gap-3 group">
+          <button 
+            onClick={handleDeleteAccount}
+            className="w-full bg-[#0C0E14]/80 border border-red-500/20 hover:bg-red-500 text-red-400 hover:text-white rounded-xl px-4 py-3 text-sm text-left transition-colors flex items-center gap-3 group"
+          >
             <Trash2 size={16} className="group-hover:text-white transition-colors" />
             <span className="font-medium">Delete Account</span>
           </button>

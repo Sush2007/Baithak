@@ -77,17 +77,18 @@ export async function GET(request) {
     );
   }
 
-  if (!contentType.startsWith("image/")) {
+  if (!contentType.startsWith("image/") && !contentType.startsWith("video/")) {
     return Response.json(
-      { error: "Forbidden: Only image files are allowed." },
+      { error: "Forbidden: Only image and video files are allowed." },
       { status: 403 }
     );
   }
 
-  const expectedPrefix = `avatars/user_uploaded/${user.id}-`;
-  if (!filename.startsWith(expectedPrefix)) {
+  const expectedAvatarPrefix = `users/${user.id}/avatars/`;
+  const expectedMediaPrefix = `users/${user.id}/posts/`;
+  if (!filename.startsWith(expectedAvatarPrefix) && !filename.startsWith(expectedMediaPrefix)) {
     return Response.json(
-      { error: "Forbidden: You can only upload files to your own avatar directory." },
+      { error: "Forbidden: Invalid upload directory or prefix." },
       { status: 403 }
     );
   }

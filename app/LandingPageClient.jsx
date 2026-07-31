@@ -220,7 +220,7 @@ const LandingPageClient = () => {
         {/* Desktop Navigation */}
         <nav className="hidden md:flex fixed top-6 left-1/2 -translate-x-1/2 w-[calc(100%-32px)] max-w-4xl rounded-full border border-white/10 bg-surface-dark/60 backdrop-blur-xl z-[60] justify-between items-center px-8 py-3.5 shadow-2xl transition-all duration-300 h-[80px] w-100px">
           <a href="#" className="flex items-center">
-            <Image src="/logo.png" alt="Baithak Logo" width={120} height={40} className="h-30 w-auto object-contain hover:opacity-90 transition-opacity" />
+            <Image src="/logo.png" alt="Baithak Logo" width={120} height={34} className="h-6 w-auto object-contain hover:opacity-90 transition-opacity" />
           </a>
           <div className="flex gap-4 items-center">
             <a
@@ -289,7 +289,7 @@ const LandingPageClient = () => {
             <div className="flex flex-col space-y-8">
               <div className="flex justify-between items-center h-16 w-auto">
                 <a href="#" className="flex items-center" onClick={() => setMobileMenuOpen(false)}>
-                  <Image src="/logo.png" alt="Baithak Logo" width={120} height={40} className="h-100 w-auto object-contain hover:opacity-90 transition-opacity" />
+                  <Image src="/logo.png" alt="Baithak Logo" width={120} height={34} className="h-7 w-auto object-contain hover:opacity-90 transition-opacity" />
                 </a>
                 <button 
                   aria-label="Close mobile menu"
@@ -684,8 +684,8 @@ const LandingPageClient = () => {
         {/* Footer */}
         <footer className="w-full py-12 px-6 border-t border-white/5 bg-surface-dark/20 text-center">
           <div className="max-w-4xl mx-auto flex flex-col items-center gap-6">
-            <div className="m-[1px] w-auto h-30">
-              <Image src="/logo.png" alt="Baithak Logo" width={120} height={40} className="w-auto h-40" />
+            <div className="m-[1px] w-auto h-12 flex items-center justify-center">
+              <Image src="/logo.png" alt="Baithak Logo" width={150} height={42} className="w-auto h-8" />
             </div>
             <div className="flex flex-wrap gap-8 text-[11px] font-bold text-on-surface-variant/50 items-center justify-center">
               <Link href="/about" className="hover:text-accent-yellow transition-colors cursor-pointer font-bold bg-transparent border-0">About Us</Link>

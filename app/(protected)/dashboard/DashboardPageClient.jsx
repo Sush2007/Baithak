@@ -1,64 +1,15 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
 import { MessageSquare, ArrowUpCircle, Eye, Share2, MoreHorizontal, ChevronDown, Bookmark, Flag, AlertTriangle, X } from 'lucide-react';
+import { supabase } from '../../../lib/supabaseClient';
+import { useAuth } from '../../../context/AuthContext';
 
 const TABS = ['For You', 'Latest', 'Trending', 'Unanswered', 'Solved'];
 const FILTERS = ['Branch', 'Tags', 'Club'];
 
-const MOCK_POSTS = [
-  {
-    id: 1,
-    author: {
-      name: 'Dr. Aris Thorne',
-      handle: '@aris_thorne',
-      avatar: 'https://i.pravatar.cc/150?u=1'
-    },
-    time: '2h ago',
-    title: 'Advanced Quantum Computing: Error Correction Methods',
-    content: 'Has anyone looked into the latest paper on surface codes for quantum error correction? The threshold improvements seem significant.',
-    media: {
-      type: 'image',
-      url: 'https://images.unsplash.com/photo-1635070041078-e363dbe005cb?auto=format&fit=crop&q=80&w=1200'
-    },
-    tags: ['Physics', 'Quantum'],
-    isHot: true,
-    stats: { replies: 42, upvotes: 156, views: '1.2k' }
-  },
-  {
-    id: 2,
-    author: {
-      name: 'Sarah Jenkins',
-      handle: '@sarah_j',
-      avatar: 'https://i.pravatar.cc/150?u=2'
-    },
-    time: '4h ago',
-    title: 'Understanding the Ethos in Modern Political Discourse',
-    content: 'I am struggling to find good primary sources for my paper on rhetorical strategies in recent political debates. Any recommendations?',
-    tags: ['Linguistics', 'Politics'],
-    isHot: false,
-    stats: { replies: 15, upvotes: 34, views: '320' }
-  },
-  {
-    id: 3,
-    author: {
-      name: 'Mike Chen',
-      handle: '@mchen_dev',
-      avatar: 'https://i.pravatar.cc/150?u=3'
-    },
-    time: '6h ago',
-    title: 'Best Practices for React Server Components in 2024',
-    content: 'Here is a comprehensive guide I wrote on when to use Server Components vs Client Components. Let me know your thoughts!',
-    media: {
-      type: 'image',
-      url: 'https://images.unsplash.com/photo-1555066931-4365d14bab8c?auto=format&fit=crop&q=80&w=1200'
-    },
-    tags: ['Engineering', 'Web Dev'],
-    isHot: true,
-    stats: { replies: 88, upvotes: 342, views: '4.5k' }
-  }
-];
+
 
 const ReportModal = ({ isOpen, onClose, post }) => {
   const [reportReason, setReportReason] = useState('');
@@ -128,10 +79,246 @@ const ReportModal = ({ isOpen, onClose, post }) => {
   );
 };
 
+const PostCard = ({ post, onReport }) => {
+  const { user } = useAuth();
+  const [openDropdownId, setOpenDropdownId] = useState(false);
+  const [isLiked, setIsLiked] = useState(false);
+  const [likesCount, setLikesCount] = useState(post.likes?.[0]?.count || 0);
+  const [isBookmarked, setIsBookmarked] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    // Check if user has liked/bookmarked
+    if (user && post.id) {
+      checkInteractions();
+    }
+  }, [user, post.id]);
+
+  const checkInteractions = async () => {
+    const { data: likeData } = await supabase.from('likes').select('id').eq('post_id', post.id).eq('user_id', user.id).single();
+    if (likeData) setIsLiked(true);
+
+    const { data: bmData } = await supabase.from('bookmarks').select('post_id').eq('post_id', post.id).eq('user_id', user.id).single();
+    if (bmData) setIsBookmarked(true);
+  };
+
+  const handleLike = async () => {
+    if (!user || isSubmitting) return;
+    setIsSubmitting(true);
+    try {
+      if (isLiked) {
+        setIsLiked(false);
+        setLikesCount(prev => Math.max(0, prev - 1));
+        await supabase.from('likes').delete().eq('post_id', post.id).eq('user_id', user.id);
+      } else {
+        setIsLiked(true);
+        setLikesCount(prev => prev + 1);
+        await supabase.from('likes').insert({ post_id: post.id, user_id: user.id });
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleBookmark = async () => {
+    if (!user || isSubmitting) return;
+    setIsSubmitting(true);
+    try {
+      if (isBookmarked) {
+        setIsBookmarked(false);
+        await supabase.from('bookmarks').delete().eq('post_id', post.id).eq('user_id', user.id);
+      } else {
+        setIsBookmarked(true);
+        await supabase.from('bookmarks').insert({ post_id: post.id, user_id: user.id });
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleShare = () => {
+    const url = `${window.location.origin}/post/${post.id}`;
+    if (navigator.share) {
+      navigator.share({ title: post.title, url });
+    } else {
+      navigator.clipboard.writeText(url);
+      alert('Link copied to clipboard!');
+    }
+  };
+
+  return (
+    <article className="bg-[#1A1B22] border border-white/5 rounded-2xl p-4 sm:p-5 hover:border-white/10 transition-colors cursor-pointer group">
+      {/* Post Header */}
+      <div className="flex justify-between items-center mb-3">
+        <div className="flex items-center gap-3">
+          <div className="relative w-10 h-10 rounded-full overflow-hidden shrink-0">
+            {post.profiles?.avatar_url ? (
+              <Image src={post.profiles.avatar_url} alt={post.profiles.display_name} fill className="object-cover" />
+            ) : (
+              <div className="w-full h-full bg-gradient-to-tr from-[#8A2387] to-[#F27121] flex items-center justify-center text-sm">👤</div>
+            )}
+          </div>
+          <div>
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <span className="font-bold text-[15px] text-white hover:underline cursor-pointer">{post.profiles?.display_name || 'Anonymous'}</span>
+              <span className="text-[15px] text-[#8E909E]">@{post.profiles?.username || 'unknown'}</span>
+              <span className="text-[15px] text-[#8E909E]">· {new Date(post.created_at).toLocaleDateString()}</span>
+            </div>
+          </div>
+        </div>
+        <div className="relative">
+          <button 
+            onClick={(e) => { e.stopPropagation(); setOpenDropdownId(!openDropdownId); }}
+            className="text-white/30 hover:text-white p-1 rounded-full hover:bg-white/5 transition-colors"
+          >
+            <MoreHorizontal size={18} />
+          </button>
+          
+          {openDropdownId && (
+            <>
+              <div className="fixed inset-0 z-10" onClick={(e) => { e.stopPropagation(); setOpenDropdownId(false); }}></div>
+              <div className="absolute right-0 mt-2 w-48 bg-[#1A1B22] border border-white/10 rounded-xl shadow-xl overflow-hidden z-20 animate-in fade-in slide-in-from-top-2 duration-150">
+                <div className="p-1">
+                  <button 
+                    onClick={(e) => { e.stopPropagation(); setOpenDropdownId(false); onReport(post); }}
+                    className="w-full flex items-center gap-3 px-3 py-2 text-sm text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-lg transition-colors text-left"
+                  >
+                    <Flag size={16} />
+                    Report Post
+                  </button>
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* Post Content */}
+      <div className="pl-0 sm:pl-[52px] space-y-3">
+        <div className="flex items-center gap-2 flex-wrap">
+          {post.tags?.includes('hot') && (
+            <span className="bg-yellow-400 text-[#1A1B22] text-[9px] font-bold px-2 py-0.5 rounded uppercase tracking-wider">
+              Hot Topic
+            </span>
+          )}
+          {post.tags?.filter(t => t !== 'hot').map(tag => (
+            <span key={tag} className="text-[10px] text-blue-400 font-medium">#{tag}</span>
+          ))}
+        </div>
+
+        <h3 className="text-lg font-bold text-white leading-snug">{post.title}</h3>
+        <p className="text-[15px] text-white/80 leading-relaxed whitespace-pre-wrap">{post.content}</p>
+
+        {post.media_url && (
+          <div className="mt-3 mb-1 rounded-2xl overflow-hidden border border-white/10 hover:border-white/20 transition-colors shadow-sm bg-black/40">
+            {post.media_type === 'image' ? (
+              <img src={post.media_url} alt="Post media" className="w-full h-auto object-cover max-h-[500px]" />
+            ) : (
+              <video src={post.media_url} controls className="w-full h-auto max-h-[500px] object-cover" />
+            )}
+          </div>
+        )}
+
+        {/* Action Buttons */}
+        <div className="flex items-center justify-between sm:justify-start sm:gap-8 pt-3 border-t border-white/5 mt-4">
+          <button 
+            onClick={(e) => { e.stopPropagation(); handleLike(); }}
+            className={`flex items-center gap-2 text-xs font-medium transition-colors group/btn ${isLiked ? 'text-green-400' : 'text-white/50 hover:text-green-400'}`}
+          >
+            <div className={`p-1.5 rounded-full transition-colors flex items-center justify-center ${isLiked ? 'bg-green-400/20' : 'group-hover/btn:bg-green-400/10'}`}>
+              <ArrowUpCircle size={18} className={isLiked ? 'fill-green-400/20' : ''} />
+            </div>
+            <span className="min-w-[20px] text-left">{likesCount}</span>
+          </button>
+          <button className="flex items-center gap-2 text-xs font-medium text-white/50 hover:text-blue-400 transition-colors group/btn">
+            <div className="p-1.5 rounded-full group-hover/btn:bg-blue-400/10 transition-colors flex items-center justify-center">
+              <MessageSquare size={18} />
+            </div>
+            <span className="min-w-[20px] text-left">{post.comments?.[0]?.count || 0} Replies</span>
+          </button>
+          <button 
+            onClick={(e) => { e.stopPropagation(); handleBookmark(); }}
+            className={`flex items-center gap-2 text-xs font-medium transition-colors group/btn ${isBookmarked ? 'text-yellow-400' : 'text-white/50 hover:text-yellow-400'}`}
+          >
+            <div className={`p-1.5 rounded-full transition-colors flex items-center justify-center ${isBookmarked ? 'bg-yellow-400/20' : 'group-hover/btn:bg-yellow-400/10'}`}>
+              <Bookmark size={18} className={isBookmarked ? 'fill-yellow-400' : ''} />
+            </div>
+          </button>
+          <button className="flex items-center gap-2 text-xs font-medium text-white/50 hover:text-white/80 transition-colors group/btn">
+            <div className="p-1.5 rounded-full group-hover/btn:bg-white/10 transition-colors flex items-center justify-center">
+              <Eye size={18} />
+            </div>
+            <span className="min-w-[20px] text-left">0</span>
+          </button>
+          <button 
+            onClick={(e) => { e.stopPropagation(); handleShare(); }}
+            className="flex items-center gap-2 text-xs font-medium text-white/50 hover:text-white/80 transition-colors group/btn ml-auto"
+          >
+            <div className="p-1.5 rounded-full group-hover/btn:bg-white/10 transition-colors flex items-center justify-center">
+              <Share2 size={18} />
+            </div>
+          </button>
+        </div>
+      </div>
+    </article>
+  );
+};
+
 const DashboardPageClient = () => {
   const [activeTab, setActiveTab] = useState('For You');
   const [openDropdownId, setOpenDropdownId] = useState(null);
   const [reportModalPost, setReportModalPost] = useState(null);
+  const [posts, setPosts] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchPosts();
+  }, [activeTab]);
+
+  const fetchPosts = async () => {
+    try {
+      setLoading(true);
+      let query = supabase
+        .from('posts')
+        .select(`
+          *, 
+          profiles(username, display_name, avatar_url),
+          likes(count),
+          comments(count)
+        `);
+
+      if (activeTab === 'Unanswered') {
+        // Need to filter posts where comment count is 0 in JS for now, as Supabase RPC might be needed for complex join filters.
+        query = query.order('created_at', { ascending: false });
+      } else if (activeTab === 'Solved') {
+        query = query.contains('tags', ['solved']).order('created_at', { ascending: false });
+      } else if (activeTab === 'Trending') {
+        query = query.order('created_at', { ascending: false }); // Sort in JS by likes
+      } else {
+        query = query.order('created_at', { ascending: false });
+      }
+
+      const { data, error } = await query;
+      if (error) throw error;
+      
+      let finalData = data || [];
+      if (activeTab === 'Unanswered') {
+        finalData = finalData.filter(p => p.comments[0]?.count === 0);
+      } else if (activeTab === 'Trending') {
+        finalData = finalData.sort((a, b) => (b.likes[0]?.count || 0) - (a.likes[0]?.count || 0));
+      }
+
+      setPosts(finalData);
+    } catch (err) {
+      console.error('Error fetching posts:', err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="max-w-3xl w-full mx-auto pb-20 md:pb-0">
@@ -161,122 +348,17 @@ const DashboardPageClient = () => {
 
       {/* Feed Content */}
       <div className="mt-6 space-y-4">
-        {MOCK_POSTS.map(post => (
-          <article key={post.id} className="bg-[#1A1B22] border border-white/5 rounded-2xl p-4 sm:p-5 hover:border-white/10 transition-colors cursor-pointer group">
-            
-            {/* Post Header */}
-            <div className="flex justify-between items-center mb-3">
-              <div className="flex items-center gap-3">
-                <div className="relative w-10 h-10 rounded-full overflow-hidden shrink-0">
-                  <Image src={post.author.avatar} alt={post.author.name} fill className="object-cover" />
-                </div>
-                <div>
-                  <div className="flex items-center gap-1.5 flex-wrap">
-                    <span className="font-bold text-[15px] text-white hover:underline cursor-pointer">{post.author.name}</span>
-                    <span className="text-[15px] text-[#8E909E]">{post.author.handle}</span>
-                    <span className="text-[15px] text-[#8E909E]">· {post.time}</span>
-                  </div>
-                </div>
-              </div>
-              <div className="relative">
-                <button 
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setOpenDropdownId(openDropdownId === post.id ? null : post.id);
-                  }}
-                  className="text-white/30 hover:text-white p-1 rounded-full hover:bg-white/5 transition-colors"
-                >
-                  <MoreHorizontal size={18} />
-                </button>
-                
-                {/* Dropdown Menu */}
-                {openDropdownId === post.id && (
-                  <>
-                    <div className="fixed inset-0 z-10" onClick={(e) => { e.stopPropagation(); setOpenDropdownId(null); }}></div>
-                    <div className="absolute right-0 mt-2 w-48 bg-[#1A1B22] border border-white/10 rounded-xl shadow-xl overflow-hidden z-20 animate-in fade-in slide-in-from-top-2 duration-150">
-                      <div className="p-1">
-                        <button 
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setOpenDropdownId(null);
-                            setReportModalPost(post);
-                          }}
-                          className="w-full flex items-center gap-3 px-3 py-2 text-sm text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-lg transition-colors text-left"
-                        >
-                          <Flag size={16} />
-                          Report Post
-                        </button>
-                      </div>
-                    </div>
-                  </>
-                )}
-              </div>
-            </div>
-
-            {/* Post Content */}
-            <div className="pl-0 sm:pl-[52px] space-y-3">
-              
-              <div className="flex items-center gap-2 flex-wrap">
-                {post.isHot && (
-                  <span className="bg-yellow-400 text-[#1A1B22] text-[9px] font-bold px-2 py-0.5 rounded uppercase tracking-wider">
-                    Hot Topic
-                  </span>
-                )}
-                {post.tags.map(tag => (
-                  <span key={tag} className="text-[10px] text-blue-400 font-medium">#{tag}</span>
-                ))}
-              </div>
-
-              <h3 className="text-lg font-bold text-white leading-snug">{post.title}</h3>
-              <p className="text-[15px] text-white/80 leading-relaxed">
-                {post.content}
-              </p>
-
-              {post.media && (
-                <div className="mt-3 mb-1 rounded-2xl overflow-hidden border border-white/10 hover:border-white/20 transition-colors shadow-sm bg-black/40">
-                  {post.media.type === 'image' ? (
-                    <img src={post.media.url} alt="Post media" className="w-full h-auto object-cover max-h-[500px]" />
-                  ) : (
-                    <video src={post.media.url} controls className="w-full h-auto max-h-[500px] object-cover" />
-                  )}
-                </div>
-              )}
-
-              {/* Action Buttons */}
-              <div className="flex items-center justify-between sm:justify-start sm:gap-8 pt-3 border-t border-white/5 mt-4">
-                <button className="flex items-center gap-2 text-xs font-medium text-white/50 hover:text-green-400 transition-colors group/btn">
-                  <div className="p-1.5 rounded-full group-hover/btn:bg-green-400/10 transition-colors flex items-center justify-center">
-                    <ArrowUpCircle size={18} />
-                  </div>
-                  <span className="min-w-[20px] text-left">{post.stats.upvotes}</span>
-                </button>
-                <button className="flex items-center gap-2 text-xs font-medium text-white/50 hover:text-blue-400 transition-colors group/btn">
-                  <div className="p-1.5 rounded-full group-hover/btn:bg-blue-400/10 transition-colors flex items-center justify-center">
-                    <MessageSquare size={18} />
-                  </div>
-                  <span className="min-w-[20px] text-left">{post.stats.replies} Replies</span>
-                </button>
-                <button className="flex items-center gap-2 text-xs font-medium text-white/50 hover:text-yellow-400 transition-colors group/btn">
-                  <div className="p-1.5 rounded-full group-hover/btn:bg-yellow-400/10 transition-colors flex items-center justify-center">
-                    <Bookmark size={18} />
-                  </div>
-                </button>
-                <button className="flex items-center gap-2 text-xs font-medium text-white/50 hover:text-white/80 transition-colors group/btn">
-                  <div className="p-1.5 rounded-full group-hover/btn:bg-white/10 transition-colors flex items-center justify-center">
-                    <Eye size={18} />
-                  </div>
-                  <span className="min-w-[20px] text-left">{post.stats.views}</span>
-                </button>
-                <button className="flex items-center gap-2 text-xs font-medium text-white/50 hover:text-white/80 transition-colors group/btn ml-auto">
-                  <div className="p-1.5 rounded-full group-hover/btn:bg-white/10 transition-colors flex items-center justify-center">
-                    <Share2 size={18} />
-                  </div>
-                </button>
-              </div>
-
-            </div>
-          </article>
-        ))}
+        {loading ? (
+          <div className="flex justify-center p-8">
+             <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+          </div>
+        ) : posts.length === 0 ? (
+          <div className="text-center p-8 text-white/50">No discussions found.</div>
+        ) : (
+          posts.map(post => (
+            <PostCard key={post.id} post={post} onReport={setReportModalPost} />
+          ))
+        )}
       </div>
       
       {/* Report Modal */}

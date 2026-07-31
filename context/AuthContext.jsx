@@ -68,23 +68,11 @@ export const AuthProvider = ({ children }) => {
     let isMounted = true;
     console.log("[AuthContext] Mounting AuthProvider...");
 
-    const safetyTimeout = setTimeout(() => {
-      if (isMounted) {
-        console.warn('[AuthContext] Auth initialization timed out after 2s. Forcing load completion.');
-        setLoading(false);
-      }
-    }, 2000);
-
     const initializeAuth = async () => {
       try {
         console.log("[AuthContext] Fetching initial session...");
         
-        // Timeout wrapper for getSession to prevent silent hangs
-        const sessionPromise = supabase.auth.getSession();
-        const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error("getSession timeout")), 4000));
-        
-        const { data: { session }, error: sessionError } = await Promise.race([sessionPromise, timeoutPromise]);
-        
+        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
         if (sessionError) throw sessionError;
         
         console.log("[AuthContext] Session fetched:", session ? "User logged in" : "No user");
@@ -95,7 +83,6 @@ export const AuthProvider = ({ children }) => {
         }
 
         if (session?.user) {
-          console.log("[AuthContext] Fetching profile for user:", session.user.id);
           const profileData = await fetchProfile(session.user.id);
           if (isMounted && profileData) setProfile(profileData);
         }
@@ -103,12 +90,9 @@ export const AuthProvider = ({ children }) => {
         console.error("[AuthContext] Critical Auth Initialization Error:", error);
       } finally {
         console.log("[AuthContext] Auth initialization finished.");
-        // If we have an access_token in the URL, wait for onAuthStateChange to handle it.
-        const hasHashToken = typeof window !== 'undefined' && window.location.hash.includes('access_token=');
-        if (isMounted && !hasHashToken) {
+        if (isMounted) {
           setLoading(false);
         }
-        clearTimeout(safetyTimeout);
       }
     };
 
@@ -139,7 +123,6 @@ export const AuthProvider = ({ children }) => {
     return () => {
       console.log("[AuthContext] Unmounting AuthProvider...");
       isMounted = false;
-      clearTimeout(safetyTimeout);
       if (subscription) subscription.unsubscribe();
     };
   }, []);
