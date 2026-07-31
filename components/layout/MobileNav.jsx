@@ -3,9 +3,14 @@
 import React from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
+import dynamic from 'next/dynamic';
 import { usePathname } from 'next/navigation';
 import { Home, Bell, User } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+
+const OpenDiscussionModal = dynamic(() => import('../modals/OpenDiscussionModal'), {
+  ssr: false,
+});
 
 const MOBILE_NAV_ITEMS = [
   { label: 'Home', href: '/dashboard', icon: Home },

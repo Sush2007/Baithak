@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
+import dynamic from 'next/dynamic';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '../../context/AuthContext';
 import { useNotifications } from '../../hooks/useNotifications';
@@ -10,7 +11,10 @@ import {
   Home, User, Bell, Bookmark, Calendar, 
   Settings, HelpCircle, Info, PlusCircle, Search, BadgeCheck
 } from 'lucide-react';
-import OpenDiscussionModal from '../modals/OpenDiscussionModal';
+
+const OpenDiscussionModal = dynamic(() => import('../modals/OpenDiscussionModal'), {
+  ssr: false,
+});
 
 const NAV_ITEMS = [
   { label: 'Home', href: '/dashboard', icon: Home },
@@ -41,7 +45,7 @@ const LeftSidebar = () => {
         <div className="relative shrink-0">
           {profile?.avatar_url ? (
              <div className="w-10 h-10 rounded-full overflow-hidden">
-               <Image src={profile.avatar_url} alt="Profile" width={40} height={40} className="object-cover w-full h-full" />
+               <Image src={profile.avatar_url} alt="Profile" width={40} height={40} className="object-cover w-full h-full" priority />
              </div>
           ) : (
              <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-[#8A2387] to-[#F27121] flex items-center justify-center text-sm">

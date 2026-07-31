@@ -220,7 +220,7 @@ const LandingPageClient = () => {
         {/* Desktop Navigation */}
         <nav className="hidden md:flex fixed top-6 left-1/2 -translate-x-1/2 w-[calc(100%-32px)] max-w-4xl rounded-full border border-white/10 bg-surface-dark/60 backdrop-blur-xl z-[60] justify-between items-center px-8 py-3.5 shadow-2xl transition-all duration-300 h-[80px] w-100px">
           <a href="#" className="flex items-center">
-            <Image src="/logo.png" alt="Baithak Logo" width={120} height={34} className="h-6 w-auto object-contain hover:opacity-90 transition-opacity" />
+            <Image src="/logo.png" alt="Baithak Logo" width={120} height={34} className="h-6 w-auto object-contain hover:opacity-90 transition-opacity" priority={true} />
           </a>
           <div className="flex gap-4 items-center">
             <a
@@ -289,7 +289,7 @@ const LandingPageClient = () => {
             <div className="flex flex-col space-y-8">
               <div className="flex justify-between items-center h-16 w-auto">
                 <a href="#" className="flex items-center" onClick={() => setMobileMenuOpen(false)}>
-                  <Image src="/logo.png" alt="Baithak Logo" width={120} height={34} className="h-7 w-auto object-contain hover:opacity-90 transition-opacity" />
+                  <Image src="/logo.png" alt="Baithak Logo" width={120} height={34} className="h-7 w-auto object-contain hover:opacity-90 transition-opacity" priority={true} />
                 </a>
                 <button 
                   aria-label="Close mobile menu"
