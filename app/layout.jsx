@@ -58,6 +58,10 @@ export const metadata = {
 export default function RootLayout({ children }) {
   return (
     <html lang="en" className={plusJakartaSans.className}>
+      <head>
+        <link rel="preconnect" href={process.env.NEXT_PUBLIC_SUPABASE_URL} crossOrigin="anonymous" />
+        <link rel="preconnect" href="https://da45e99017dca2252440c60f874d5ab8.r2.cloudflarestorage.com" crossOrigin="anonymous" />
+      </head>
       <body suppressHydrationWarning>
         <AuthProvider>
           {children}
