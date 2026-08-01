@@ -248,8 +248,8 @@ const ProfileSetupPageClient = () => {
 
       if (updateError) throw updateError;
 
-      // 4. Refresh profile state in Context (triggers router switch to /dashboard)
-      await refreshProfile();
+      // 4. Force hard redirect to hit Edge Middleware and guarantee server state sync
+      window.location.href = '/dashboard';
 
     } catch (err) {
       console.error('Profile Onboarding Failed:', err);

@@ -24,7 +24,7 @@ const NAV_ITEMS = [
   { label: 'Events', href: '/events', icon: Calendar },
   { label: 'Settings', href: '/settings', icon: Settings },
   { label: 'Support', href: '/support', icon: HelpCircle },
-  { label: 'About Us', href: '/about-us', icon: Info },
+  { label: 'About Us', href: '/about', icon: Info },
 ];
 
 const LeftSidebar = () => {

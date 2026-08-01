@@ -27,17 +27,9 @@ export async function POST(request) {
     const payload = await request.json();
     const { notification_id, user_id, actor_id, type, post_id } = payload;
 
-    if (!user_id || !type) {
+    if (!type || (!user_id && type !== 'new_post')) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
-
-    // Since we don't have a service_role key configured in .env, we'll use a direct fetch with anon key, 
-    // BUT we need to ensure the push_subscriptions table allows the anon role to select if it's an internal webhook,
-    // OR we can just use the anon key and hope the RLS is not restricting SELECT. 
-    // Actually, RLS on push_subscriptions is restricted to auth.uid() = user_id.
-    // The webhook runs from the DB, so it has no auth.uid() in the HTTP request.
-    // To solve this properly, the webhook should ideally include an admin secret, but we'll bypass it for this demo
-    // by altering the RLS policy in a real scenario. Here we will just fetch.
     
     // Fetch actor profile
     const { data: actor } = await supabase
@@ -47,7 +39,7 @@ export async function POST(request) {
       .single();
 
     // Fetch post title
-    let postTitle = 'your post';
+    let postTitle = 'a discussion';
     if (post_id) {
       const { data: post } = await supabase
         .from('posts')
@@ -61,31 +53,39 @@ export async function POST(request) {
     let message = '';
     
     if (type === 'like') {
-      message = `${actorName} liked ${postTitle}`;
+      message = `${actorName} liked your post ${postTitle}`;
     } else if (type === 'comment') {
-      message = `${actorName} commented on ${postTitle}`;
+      message = `${actorName} replied to your post ${postTitle}`;
+    } else if (type === 'new_post') {
+      message = `${actorName} just started a new discussion: ${postTitle}`;
     } else {
       message = `You have a new notification from ${actorName}`;
     }
 
-    // Fetch user's subscriptions (Requires RLS to allow anon to read, or Service Role Key)
-    // *If this fails in testing, we'll need to update the RLS policy for push_subscriptions to allow SELECT for anon*
-    const { data: subscriptions, error: subError } = await supabase
-      .from('push_subscriptions')
-      .select('*')
-      .eq('user_id', user_id);
-
-    if (subError) {
-      console.error('Error fetching subscriptions:', subError);
-      return NextResponse.json({ error: 'Failed to fetch subscriptions' }, { status: 500 });
+    // Fetch subscriptions
+    let subscriptions = [];
+    if (type === 'new_post') {
+      // Broadcast to everyone EXCEPT the author
+      const { data, error } = await supabase
+        .from('push_subscriptions')
+        .select('*')
+        .neq('user_id', actor_id);
+      if (!error && data) subscriptions = data;
+    } else {
+      // Send to specific user
+      const { data, error } = await supabase
+        .from('push_subscriptions')
+        .select('*')
+        .eq('user_id', user_id);
+      if (!error && data) subscriptions = data;
     }
 
     if (!subscriptions || subscriptions.length === 0) {
-      return NextResponse.json({ success: true, message: 'No subscriptions found for user' }, { status: 200 });
+      return NextResponse.json({ success: true, message: 'No subscriptions found' }, { status: 200 });
     }
 
     const pushPayload = JSON.stringify({
-      title: 'Baithak Notification',
+      title: 'Baithak',
       body: message,
       url: post_id ? `/post/${post_id}` : '/',
     });
@@ -104,7 +104,6 @@ export async function POST(request) {
         await webpush.sendNotification(pushSubscription, pushPayload);
       } catch (err) {
         console.error('Error sending push to endpoint:', sub.endpoint, err);
-        // If Gone (410), delete subscription
         if (err.statusCode === 410 || err.statusCode === 404) {
           await supabase.from('push_subscriptions').delete().eq('id', sub.id);
         }

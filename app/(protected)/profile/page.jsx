@@ -10,6 +10,7 @@ const TABS = ['Discussions', 'Replies', 'Achievements', 'Activity'];
 
 import { formatDistanceToNow } from 'date-fns';
 import { supabase } from '../../../lib/supabaseClient';
+import PostCard from '../../../components/post/PostCard';
 
 export default function ProfilePage() {
   const { profile, user } = useAuth();
@@ -155,72 +156,11 @@ export default function ProfilePage() {
             <div className="text-center py-10 text-white/50">No discussions posted yet.</div>
           ) : (
             posts.map(post => (
-              <article key={post.id} className="bg-[#1A1B22] border border-white/5 rounded-2xl p-4 sm:p-5 hover:border-white/10 transition-colors cursor-pointer group">
-                
-                <div className="flex justify-between items-start mb-3">
-                  <div className="flex items-center gap-1.5 flex-wrap">
-                    <span className="text-xs text-[#8E909E]">
-                      {formatDistanceToNow(new Date(post.created_at), { addSuffix: true })}
-                    </span>
-                  </div>
-                  <button className="text-white/30 hover:text-white p-1 rounded-full hover:bg-white/5 transition-colors">
-                    <MoreHorizontal size={18} />
-                  </button>
-                </div>
-
-                <div className="space-y-3">
-                  
-                  <div className="flex items-center gap-2 flex-wrap">
-                    {post.tags?.map(tag => (
-                      <span key={tag} className="text-[10px] text-blue-400 font-medium bg-blue-500/10 px-2 py-0.5 rounded uppercase tracking-wider">#{tag}</span>
-                    ))}
-                  </div>
-
-                  <h2 className="text-base font-bold text-white/90 group-hover:text-blue-400 transition-colors">
-                    {post.title}
-                  </h2>
-                  <p className="text-sm text-white/60 leading-relaxed line-clamp-3 whitespace-pre-wrap">
-                    {post.content}
-                  </p>
-                  
-                  {post.media_url && (
-                    <div className="mt-3 rounded-xl overflow-hidden border border-white/10 bg-[#0C0E14]">
-                      {post.media_type === 'video' ? (
-                        <video src={post.media_url} controls className="w-full max-h-[300px] object-contain" />
-                      ) : (
-                        <img src={post.media_url} alt="Post media" className="w-full max-h-[300px] object-cover" />
-                      )}
-                    </div>
-                  )}
-
-                  <div className="flex items-center justify-between sm:justify-start sm:gap-6 pt-3 border-t border-white/5 mt-4">
-                    <button className="flex items-center gap-1.5 text-xs font-medium text-white/50 hover:text-blue-400 transition-colors group/btn">
-                      <div className="p-1.5 rounded-full group-hover/btn:bg-blue-400/10 transition-colors">
-                        <MessageSquare size={16} />
-                      </div>
-                      {post.comments?.[0]?.count || 0} Replies
-                    </button>
-                    <button className="flex items-center gap-1.5 text-xs font-medium text-white/50 hover:text-green-400 transition-colors group/btn">
-                      <div className="p-1.5 rounded-full group-hover/btn:bg-green-400/10 transition-colors">
-                        <ArrowUpCircle size={16} />
-                      </div>
-                      {post.likes?.[0]?.count || 0}
-                    </button>
-                    <button className="flex items-center gap-1.5 text-xs font-medium text-white/50 hover:text-white/80 transition-colors group/btn">
-                      <div className="p-1.5 rounded-full group-hover/btn:bg-white/10 transition-colors">
-                        <Eye size={16} />
-                      </div>
-                      --
-                    </button>
-                    <button className="flex items-center gap-1.5 text-xs font-medium text-white/50 hover:text-white/80 transition-colors group/btn ml-auto">
-                      <div className="p-1.5 rounded-full group-hover/btn:bg-white/10 transition-colors">
-                        <Share2 size={16} />
-                      </div>
-                    </button>
-                  </div>
-
-                </div>
-              </article>
+              <PostCard 
+                key={post.id} 
+                post={post} 
+                onReport={(p) => console.log('Report', p)}
+              />
             ))
           )}
         </div>

@@ -1,34 +1,28 @@
 "use client";
 
-import React, { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import React from 'react';
 import { useAuth } from '../context/AuthContext';
 
 const ProtectedRoute = ({ children, type = 'protected' }) => {
-  const { user, profile, loading } = useAuth();
-  const router = useRouter();
-
-  useEffect(() => {
-    // If we're on a protected route, have a user and profile, and setup isn't completed, redirect to setup
-    if (!loading && user && profile && !profile.setup_completed && type !== 'public-only' && type !== 'onboarding') {
-      router.push('/profile-setup');
-    }
-  }, [user, profile, loading, router, type]);
+  const { user, loading } = useAuth();
 
   if (loading) {
-    return null; // Silent loading for seamless experience, middleware handled the flash
+    // Show a sleek loader to prevent UI flashing while AuthContext hydrates
+    return (
+      <div className="fixed inset-0 bg-[#0C0E14] z-[9999] flex items-center justify-center">
+         <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+      </div>
+    );
   }
 
-  // Middleware guarantees unauthenticated users cannot access protected routes.
-  // We just return children if they made it here securely.
-  
-  // If they are on a protected route and don't have a profile yet (perhaps it's still fetching on client), 
-  // we can show a silent loader until the client catches up with the server state.
-  if (user && (!profile || !profile.setup_completed) && type !== 'public-only' && type !== 'onboarding') {
+  // Middleware guarantees that if user is on this route, they belong here.
+  // We just ensure we don't render protected content to a completely unauthenticated client 
+  // (though middleware covers this too, this prevents momentary client hydration mismatches)
+  if (!user && type !== 'public-only' && type !== 'public-optional') {
      return null;
   }
 
-  return children;
+  return <>{children}</>;
 };
 
 export default ProtectedRoute;

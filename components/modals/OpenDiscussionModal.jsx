@@ -34,7 +34,7 @@ export default function OpenDiscussionModal({ isOpen, onClose }) {
   };
 
   const handleSubmit = async () => {
-    if (!title.trim() || !content.trim() || !user) return;
+    if (!content.trim() || !user) return;
     
     setIsSubmitting(true);
     let finalMediaUrl = null;
@@ -120,6 +120,17 @@ export default function OpenDiscussionModal({ isOpen, onClose }) {
     setMounted(true);
   }, []);
 
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, [isOpen]);
+
   if (!isOpen || !mounted) return null;
 
   const modalContent = (
@@ -152,7 +163,7 @@ export default function OpenDiscussionModal({ isOpen, onClose }) {
           {/* Title Field */}
           <div className="space-y-2.5">
             <label className="block text-[12px] font-semibold text-[#E2E1EB] uppercase tracking-wider">
-              DISCUSSION TITLE
+              DISCUSSION TITLE (OPTIONAL)
             </label>
             <input 
               type="text" 
@@ -294,7 +305,7 @@ export default function OpenDiscussionModal({ isOpen, onClose }) {
           </button>
           <button 
             onClick={handleSubmit}
-            disabled={!title.trim() || !content.trim() || isSubmitting}
+            disabled={!content.trim() || isSubmitting}
             className="flex items-center gap-2 bg-[#003B95] hover:bg-[#002B73] disabled:bg-[#003B95]/50 disabled:text-white/50 text-white text-[14px] font-semibold px-6 py-2.5 rounded-lg transition-colors shadow-[inset_0px_1px_0px_0px_rgba(255,255,255,0.1)]"
           >
             {isSubmitting ? (
