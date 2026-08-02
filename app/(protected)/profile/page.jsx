@@ -17,6 +17,7 @@ export default function ProfilePage() {
   const [activeTab, setActiveTab] = useState('Discussions');
   const [posts, setPosts] = useState([]);
   const [isLoadingPosts, setIsLoadingPosts] = useState(true);
+  const [connectionCount, setConnectionCount] = useState(0);
 
   React.useEffect(() => {
     async function fetchPosts() {
@@ -36,6 +37,13 @@ export default function ProfilePage() {
 
         if (error) throw error;
         setPosts(data || []);
+
+        const { count } = await supabase
+          .from('connections')
+          .select('*', { count: 'exact', head: true })
+          .eq('following_id', profile.id);
+          
+        setConnectionCount(count || 0);
       } catch (err) {
         console.error('Error fetching user posts:', err);
       } finally {
@@ -108,6 +116,7 @@ export default function ProfilePage() {
                 <a href={profile.linkedin_url} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline">LinkedIn</a>
               </span>
             )}
+            <span className="flex items-center gap-1.5 font-medium text-[#8FAAFF]">{connectionCount} Connections</span>
             <span className="flex items-center gap-1.5"><Calendar size={14} /> Joined {profile?.created_at ? new Date(profile.created_at).toLocaleDateString('en-US', { month: 'long', year: 'numeric'}) : 'recently'}</span>
           </div>
         </div>
@@ -159,6 +168,7 @@ export default function ProfilePage() {
               <PostCard 
                 key={post.id} 
                 post={post} 
+                onDelete={(deletedId) => setPosts(prev => prev.filter(p => p.id !== deletedId))}
                 onReport={(p) => console.log('Report', p)}
               />
             ))

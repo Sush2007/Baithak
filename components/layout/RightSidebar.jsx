@@ -1,17 +1,55 @@
 "use client";
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { Trophy, ShieldCheck, Lock, BadgeCheck } from 'lucide-react';
-
-const TRENDING_TAGS = [
-  'Mechanical', 'CSE', 'Electrical', 'Electrical',
-  'Civil', 'Robotics Club', 'SAE', 'Robotics Club', 
-  'Internships', 'Placements', 'Internships'
-];
+import { Trophy, ShieldCheck, Lock, BadgeCheck, TrendingUp } from 'lucide-react';
+import { supabase } from '../../lib/supabaseClient';
 
 const RightSidebar = () => {
   const { user } = useAuth();
+  const [trendingTags, setTrendingTags] = useState([]);
+  
+  useEffect(() => {
+    const fetchTrendingTags = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('posts')
+          .select('tags')
+          .order('created_at', { ascending: false })
+          .limit(100);
+          
+        if (error) throw error;
+        
+        // Aggregate tags
+        const tagCounts = {};
+        data.forEach(post => {
+          if (Array.isArray(post.tags)) {
+            post.tags.forEach(tag => {
+              if (tag === 'general') return; // skip general tag
+              tagCounts[tag] = (tagCounts[tag] || 0) + 1;
+            });
+          }
+        });
+        
+        // Sort tags by frequency and get top 8
+        const sortedTags = Object.entries(tagCounts)
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, 8)
+          .map(entry => entry[0]);
+          
+        if (sortedTags.length > 0) {
+          setTrendingTags(sortedTags);
+        } else {
+          setTrendingTags(['Mechanical', 'CSE', 'Internships', 'Placements']);
+        }
+      } catch (err) {
+        console.error('Failed to fetch trending tags:', err);
+        setTrendingTags(['Mechanical', 'CSE', 'Internships', 'Placements']);
+      }
+    };
+    
+    fetchTrendingTags();
+  }, []);
 
   return (
     <aside className="hidden lg:flex flex-col h-screen sticky top-0 py-6 pl-4 border-l border-white/5 space-y-6 overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
@@ -44,14 +82,17 @@ const RightSidebar = () => {
 
       {/* Trending Tags Widget */}
       <div className="bg-[#1A1B22] border border-white/5 rounded-2xl p-6 shrink-0">
-        <span className="text-[11px] font-medium text-white/40 tracking-wider uppercase mb-4 block">TRENDING TAGS</span>
-        <div className="flex flex-wrap gap-3">
-          {TRENDING_TAGS.map((tag, idx) => (
+        <div className="flex items-center gap-2 mb-4">
+          <TrendingUp size={14} className="text-[#8FAAFF]" />
+          <span className="text-[11px] font-medium text-white/40 tracking-wider uppercase">TRENDING TAGS</span>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {trendingTags.map((tag, idx) => (
             <span 
               key={idx} 
-              className="text-[12px] font-medium text-[#C4C5D5] bg-transparent border border-[#33343C] hover:border-white/20 hover:bg-white/5 transition-colors px-4 py-2 rounded-xl cursor-pointer"
+              className="text-[12px] font-medium text-[#C4C5D5] bg-[#0C0E14] border border-[#33343C] hover:border-[#8FAAFF] hover:text-[#8FAAFF] transition-colors px-3 py-1.5 rounded-lg cursor-pointer"
             >
-              {tag}
+              #{tag}
             </span>
           ))}
         </div>

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { useAuth } from '../context/AuthContext';
+import toast from 'react-hot-toast';
 
 export function useNotifications() {
   const { user } = useAuth();
@@ -32,9 +33,20 @@ export function useNotifications() {
           table: 'notifications',
           filter: `user_id=eq.${user.id}`
         },
-        (payload) => {
+        async (payload) => {
           if (payload.new.actor_id !== user.id) {
             setUnreadCount((prev) => prev + 1);
+            
+            // Show toast
+            const { data: actorData } = await supabase
+              .from('profiles')
+              .select('display_name')
+              .eq('id', payload.new.actor_id)
+              .single();
+              
+            const actorName = actorData?.display_name || 'Someone';
+            const actionText = payload.new.type === 'like' ? 'liked your post' : 'commented on your post';
+            toast(`${actorName} ${actionText}`, { icon: payload.new.type === 'like' ? '❤️' : '💬' });
           }
         }
       )

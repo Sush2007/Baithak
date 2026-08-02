@@ -29,7 +29,7 @@ const SUPPORT_CARDS = [
 
 const FAQS = [
   {
-    question: 'How do I verify my institutional email?',
+    question: 'How do I verify my email?',
     answer: 'Go to your Profile settings, click on "Verify Account", and enter your .edu email address. A verification link will be sent to your inbox.'
   },
   {

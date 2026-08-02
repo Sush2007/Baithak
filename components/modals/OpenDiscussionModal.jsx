@@ -5,6 +5,7 @@ import { createPortal } from 'react-dom';
 import { X, ChevronDown, Image as ImageIcon, Film, Trash2, Loader2, UploadCloud } from 'lucide-react';
 import { supabase } from '../../lib/supabaseClient';
 import { useAuth } from '../../context/AuthContext';
+import imageCompression from 'browser-image-compression';
 
 export default function OpenDiscussionModal({ isOpen, onClose }) {
   const { user } = useAuth();
@@ -19,18 +20,34 @@ export default function OpenDiscussionModal({ isOpen, onClose }) {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleMediaUpload = (e) => {
+  const handleMediaUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
     
-    // Check file size (e.g. max 50MB)
-    if (file.size > 50 * 1024 * 1024) {
-      alert("File size exceeds 50MB limit.");
+    // Check file size (max 30MB)
+    if (file.size > 30 * 1024 * 1024) {
+      alert("File size exceeds 30MB limit.");
       return;
     }
 
-    setMediaFile(file);
-    setMediaPreview(URL.createObjectURL(file));
+    let processedFile = file;
+
+    // Compress images if it's an image
+    if (file.type.startsWith('image/')) {
+      try {
+        const options = {
+          maxSizeMB: 1,
+          maxWidthOrHeight: 1920,
+          useWebWorker: true,
+        };
+        processedFile = await imageCompression(file, options);
+      } catch (error) {
+        console.error("Error compressing image:", error);
+      }
+    }
+
+    setMediaFile(processedFile);
+    setMediaPreview(URL.createObjectURL(processedFile));
   };
 
   const handleSubmit = async () => {
@@ -81,6 +98,16 @@ export default function OpenDiscussionModal({ isOpen, onClose }) {
       if (branch) tags.push(branch);
       if (club) tags.push(club);
       if (isGeneral) tags.push('general');
+
+      // Extract hashtags
+      const hashtagRegex = /#(\w+)/g;
+      let match;
+      while ((match = hashtagRegex.exec(content)) !== null) {
+        const tag = match[1].toLowerCase();
+        if (!tags.includes(tag)) {
+          tags.push(tag);
+        }
+      }
 
       const { error } = await supabase.from('posts').insert([
         {
@@ -196,7 +223,7 @@ export default function OpenDiscussionModal({ isOpen, onClose }) {
               <div className="flex gap-3">
                 <label className="flex items-center gap-2 px-4 py-3 bg-[#0C0E14] border border-white/10 border-dashed rounded-lg text-sm text-white/70 hover:bg-white/5 hover:text-white hover:border-white/30 cursor-pointer transition-all w-full justify-center">
                   <UploadCloud size={18} className="text-[#0033A0]" />
-                  <span className="font-medium">Upload Image or Video (Max 50MB)</span>
+                  <span className="font-medium">Upload Image or Video (Max 30MB)</span>
                   <input type="file" accept="image/*,video/*" className="hidden" onChange={handleMediaUpload} />
                 </label>
               </div>

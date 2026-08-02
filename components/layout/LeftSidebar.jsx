@@ -66,14 +66,12 @@ const LeftSidebar = () => {
       </div>
 
       {/* Search */}
-      <div className="relative mb-2">
-        <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-[#8E909E]" />
-        <input 
-          type="text" 
-          placeholder="Search discussions..." 
-          className="w-full bg-transparent border border-white/10 text-sm text-white rounded-[14px] py-2.5 pl-11 pr-4 outline-none focus:border-[#0052FF]/50 focus:ring-1 focus:ring-[#0052FF]/50 transition-all placeholder:text-[#8E909E]"
-        />
-      </div>
+      <Link href="/search" className="block relative mb-2 group">
+        <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-[#8E909E] group-hover:text-white transition-colors" />
+        <div className="w-full bg-transparent border border-white/10 text-sm text-[#8E909E] rounded-[14px] py-2.5 pl-11 pr-4 cursor-text group-hover:border-[#0052FF]/50 group-hover:text-white transition-all">
+          Search Anything...
+        </div>
+      </Link>
 
       {/* Navigation */}
       <nav className="flex-1 space-y-0.5 overflow-y-auto overflow-x-hidden scrollbar-hide px-1">

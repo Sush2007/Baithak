@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { Menu } from 'lucide-react';
+import { Menu, Search } from 'lucide-react';
 import MobileMenuModal from '../modals/MobileMenuModal';
 import { useAuth } from '../../context/AuthContext';
 
@@ -34,8 +34,10 @@ export default function MobileHeader() {
         />
       </Link>
       
-      {/* Empty spacer for centering balance */}
-      <div className="w-8"></div>
+      {/* Search Icon */}
+      <Link href="/search" className="w-8 h-8 flex items-center justify-center text-white/70 hover:text-white transition-colors">
+        <Search size={20} />
+      </Link>
     </header>
     
     <MobileMenuModal isOpen={isMenuOpen} onClose={() => setIsMenuOpen(false)} />
