@@ -455,7 +455,7 @@ const PostCard = ({ post, onReport, onQuickProfile, onDelete }) => {
                         
                         {/* Interactive mini-actions for replies */}
                         <div className="mt-2 flex items-center justify-end">
-                          {user?.id === post.author_id && !post.is_solved && !reply.is_best_answer && (
+                          {user?.id === post.author_id && !post.is_solved && !reply.is_best_answer && reply.author_id !== user?.id && (
                             <button
                               onClick={(e) => { e.stopPropagation(); handleMarkAsBestAnswer(reply.id); }}
                               disabled={isSubmitting}
