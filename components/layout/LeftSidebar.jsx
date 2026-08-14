@@ -52,10 +52,6 @@ const LeftSidebar = () => {
                👤
              </div>
           )}
-          {/* Verified Badge Overlay */}
-          <div className="absolute -bottom-1 -right-1 bg-[#1A1B22] rounded-full p-[2px] z-10">
-            <BadgeCheck size={16} className="text-[#0052FF]" fill="currentColor" stroke="#1A1B22" strokeWidth={2} />
-          </div>
         </div>
         <div className="flex-1 min-w-0">
           <p className="text-[13px] font-medium text-white/90 truncate">

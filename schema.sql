@@ -87,6 +87,7 @@ CREATE TABLE public.comments (
   post_id UUID REFERENCES public.posts(id) ON DELETE CASCADE,
   author_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE,
   content TEXT NOT NULL,
+  is_best_answer BOOLEAN DEFAULT false,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );

@@ -1,9 +1,39 @@
 import React, { useState } from 'react';
 import { AlertTriangle, X } from 'lucide-react';
+import { supabase } from '../../lib/supabaseClient';
+import { useAuth } from '../../context/AuthContext';
+import { toast } from 'react-hot-toast';
 
 const ReportModal = ({ isOpen, onClose, post }) => {
+  const { user } = useAuth();
   const [reportReason, setReportReason] = useState('');
+  const [details, setDetails] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
   
+  const handleSubmit = async () => {
+    if (!user || !post) return;
+    setIsSubmitting(true);
+    try {
+      const { error } = await supabase.from('reports').insert({
+        post_id: post.id,
+        reporter_id: user.id,
+        reason: reportReason,
+        details: details
+      });
+
+      if (error) throw error;
+      toast.success('Report submitted successfully. The post has been hidden pending review.');
+      // Update local DOM to hide the post immediately if desired, or let the parent component re-fetch.
+      if (typeof window !== 'undefined') window.location.reload(); 
+    } catch (error) {
+      console.error('Error submitting report:', error);
+      toast.error('Failed to submit report. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+      onClose();
+    }
+  };
+
   if (!isOpen) return null;
   
   return (
@@ -45,6 +75,8 @@ const ReportModal = ({ isOpen, onClose, post }) => {
           <div className="space-y-3">
             <label className="text-[12px] font-bold text-[#C4C5D5] uppercase tracking-wide block">Additional Details (Optional)</label>
             <textarea 
+              value={details}
+              onChange={(e) => setDetails(e.target.value)}
               className="w-full bg-[#0C0E14] border border-white/5 rounded-xl p-4 text-sm text-white placeholder-white/20 focus:outline-none focus:border-[#FFC300]/50 focus:ring-1 focus:ring-[#FFC300]/50 transition-all resize-none h-24"
               placeholder="Provide more context..."
             />
@@ -57,11 +89,11 @@ const ReportModal = ({ isOpen, onClose, post }) => {
             Cancel
           </button>
           <button 
-            onClick={() => { alert('Report submitted successfully.'); onClose(); }}
-            disabled={!reportReason}
-            className="px-6 py-2.5 rounded-xl text-[14px] font-semibold text-[#1A1B22] bg-[#FFC300] hover:bg-[#E8B82F] disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-md"
+            onClick={handleSubmit}
+            disabled={!reportReason || isSubmitting}
+            className="px-6 py-2.5 rounded-xl text-[14px] font-semibold text-[#1A1B22] bg-[#FFC300] hover:bg-[#E8B82F] disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-md flex items-center gap-2"
           >
-            Submit Report
+            {isSubmitting ? 'Submitting...' : 'Submit Report'}
           </button>
         </div>
       </div>

@@ -7,18 +7,27 @@ import { supabase } from '../../lib/supabaseClient';
 import { useAuth } from '../../context/AuthContext';
 import imageCompression from 'browser-image-compression';
 
+const STANDARD_HASHTAGS = [
+  'cse', 'ece', 'mech', 'civil', 'ee', 'metallurgy', 'production', 'chemical', 'architecture',
+  'robotics', 'gdsc', 'music', 'dance', 'drama', 'sports', 'coding', 'photography', 'art',
+  'general', 'doubt', 'placement', 'internship', 'events', 'hostel', 'academics', 'exam', 'alumni'
+];
+
 export default function OpenDiscussionModal({ isOpen, onClose }) {
   const { user } = useAuth();
   const [mounted, setMounted] = useState(false);
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
-  const [branch, setBranch] = useState('');
-  const [club, setClub] = useState('');
-  const [isGeneral, setIsGeneral] = useState(false);
   const [mediaFile, setMediaFile] = useState(null);
   const [mediaPreview, setMediaPreview] = useState(null);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Hashtag Autocomplete State
+  const [hashtagOptions, setHashtagOptions] = useState([]);
+  const [showHashtags, setShowHashtags] = useState(false);
+  const [cursorPosition, setCursorPosition] = useState(0);
+  const textareaRef = React.useRef(null);
 
   const handleMediaUpload = async (e) => {
     const file = e.target.files[0];
@@ -48,6 +57,53 @@ export default function OpenDiscussionModal({ isOpen, onClose }) {
 
     setMediaFile(processedFile);
     setMediaPreview(URL.createObjectURL(processedFile));
+  };
+
+  const handleContentChange = (e) => {
+    const val = e.target.value;
+    setContent(val);
+    
+    // Autocomplete logic
+    const cursor = e.target.selectionStart;
+    setCursorPosition(cursor);
+    
+    const textBeforeCursor = val.slice(0, cursor);
+    const match = textBeforeCursor.match(/#(\w*)$/);
+    
+    if (match) {
+      const searchWord = match[1].toLowerCase();
+      // Show matches that contain the typed characters, but don't show if they typed the whole word exactly
+      const matches = STANDARD_HASHTAGS.filter(tag => tag.includes(searchWord) && tag !== searchWord).slice(0, 5);
+      
+      if (matches.length > 0) {
+        setHashtagOptions(matches);
+        setShowHashtags(true);
+      } else {
+        setShowHashtags(false);
+      }
+    } else {
+      setShowHashtags(false);
+    }
+  };
+
+  const insertHashtag = (tag) => {
+    const textBeforeCursor = content.slice(0, cursorPosition);
+    const textAfterCursor = content.slice(cursorPosition);
+    
+    // Replace the partial hashtag with the full tag
+    const newTextBeforeCursor = textBeforeCursor.replace(/#\w*$/, `#${tag} `);
+    
+    setContent(newTextBeforeCursor + textAfterCursor);
+    setShowHashtags(false);
+    
+    // Refocus and set cursor
+    if (textareaRef.current) {
+      textareaRef.current.focus();
+      setTimeout(() => {
+        textareaRef.current.selectionStart = newTextBeforeCursor.length;
+        textareaRef.current.selectionEnd = newTextBeforeCursor.length;
+      }, 0);
+    }
   };
 
   const handleSubmit = async () => {
@@ -95,9 +151,6 @@ export default function OpenDiscussionModal({ isOpen, onClose }) {
       }
 
       const tags = [];
-      if (branch) tags.push(branch);
-      if (club) tags.push(club);
-      if (isGeneral) tags.push('general');
 
       // Extract hashtags
       const hashtagRegex = /#(\w+)/g;
@@ -108,6 +161,27 @@ export default function OpenDiscussionModal({ isOpen, onClose }) {
           tags.push(tag);
         }
       }
+
+      // --- AI Moderation Step ---
+      setUploadProgress(95); // Just a UI bump
+      const modRes = await fetch('/api/moderate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: title.trim(),
+          content: content.trim(),
+          mediaUrl: finalMediaUrl,
+          mediaType: finalMediaType
+        })
+      });
+
+      if (modRes.ok) {
+        const modData = await modRes.json();
+        if (modData.isSafe === false) {
+          throw new Error(`Your post was blocked by Auto-Moderator: ${modData.reason || 'Inappropriate content'}`);
+        }
+      }
+      // --------------------------
 
       const { error } = await supabase.from('posts').insert([
         {
@@ -124,11 +198,8 @@ export default function OpenDiscussionModal({ isOpen, onClose }) {
       
       setTitle('');
       setContent('');
-      setBranch('');
-      setClub('');
       setMediaFile(null);
       setMediaPreview(null);
-      setIsGeneral(false);
       setUploadProgress(100);
       onClose();
       
@@ -202,16 +273,38 @@ export default function OpenDiscussionModal({ isOpen, onClose }) {
           </div>
           
           {/* Description Field */}
-          <div className="space-y-2.5">
+          <div className="space-y-2.5 relative">
             <label className="block text-[12px] font-semibold text-[#E2E1EB] uppercase tracking-wider">
               DISCUSSION DESCRIPTION
             </label>
             <textarea 
-              placeholder="Share more context, details, or questions..."
+              ref={textareaRef}
+              placeholder="Share more context, details, or questions... Try typing # to add tags!"
               value={content}
-              onChange={(e) => setContent(e.target.value)}
+              onChange={handleContentChange}
+              onKeyUp={(e) => setCursorPosition(e.target.selectionStart)}
+              onClick={(e) => setCursorPosition(e.target.selectionStart)}
               className="w-full min-h-[100px] bg-[#0C0E14] border border-white/10 rounded-lg p-3.5 text-[14px] text-white placeholder:text-[#8E909E] outline-none focus:border-[#0033A0] resize-none transition-colors"
             />
+            {/* Hashtag Autocomplete Popup */}
+            {showHashtags && (
+              <div className="absolute z-10 left-0 mt-1 w-auto min-w-[200px] bg-[#1A1B22] border border-white/10 rounded-lg shadow-xl overflow-hidden animate-fade-in">
+                <div className="px-3 py-2 border-b border-white/5 bg-white/5">
+                  <span className="text-[10px] font-bold text-white/50 uppercase tracking-wider">Suggested Tags</span>
+                </div>
+                <div className="p-1.5 flex flex-col">
+                  {hashtagOptions.map(tag => (
+                    <button
+                      key={tag}
+                      onClick={() => insertHashtag(tag)}
+                      className="text-left px-3 py-2 text-sm text-[#E2E1EB] hover:bg-[#0033A0] hover:text-white rounded transition-colors"
+                    >
+                      #{tag}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Upload Media Field */}
@@ -265,60 +358,6 @@ export default function OpenDiscussionModal({ isOpen, onClose }) {
                 </button>
               </div>
             )}
-          </div>
-
-          {/* Selectors Row */}
-          <div className="flex gap-4">
-            <div className="flex-1 space-y-2.5">
-              <label className="block text-[12px] font-semibold text-[#E2E1EB] uppercase tracking-wider">
-                SELECT BRANCH
-              </label>
-              <div className="relative">
-                <select 
-                  value={branch}
-                  onChange={(e) => setBranch(e.target.value)}
-                  className="w-full h-[40px] bg-[#0C0E14] border border-white/10 rounded-lg pl-3.5 pr-9 text-[14px] text-white appearance-none outline-none focus:border-[#0033A0] transition-colors"
-                >
-                  <option value="" disabled className="text-[#8E909E]">Select...</option>
-                  <option value="cse">Computer Science</option>
-                  <option value="ece">Electronics</option>
-                  <option value="mech">Mechanical</option>
-                </select>
-                <ChevronDown size={14} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-white/50 pointer-events-none" />
-              </div>
-            </div>
-            <div className="flex-1 space-y-2.5">
-              <label className="block text-[12px] font-semibold text-[#E2E1EB] uppercase tracking-wider">
-                SELECT CLUB
-              </label>
-              <div className="relative">
-                <select 
-                  value={club}
-                  onChange={(e) => setClub(e.target.value)}
-                  className="w-full h-[40px] bg-[#0C0E14] border border-white/10 rounded-lg pl-3.5 pr-9 text-[14px] text-white appearance-none outline-none focus:border-[#0033A0] transition-colors"
-                >
-                  <option value="" disabled className="text-[#8E909E]">Select...</option>
-                  <option value="robotics">Robotics Club</option>
-                  <option value="gdsc">GDSC</option>
-                  <option value="music">Music Club</option>
-                </select>
-                <ChevronDown size={14} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-white/50 pointer-events-none" />
-              </div>
-            </div>
-          </div>
-
-          {/* General Toggle */}
-          <div className="bg-[#1A1B22] border border-white/5 rounded-lg p-3.5 flex justify-between items-center">
-            <div>
-              <h3 className="text-[14px] text-[#E2E1EB]">Post as General</h3>
-              <p className="text-[12px] text-[#C4C5D5] mt-0.5">Make this discussion visible to all departments</p>
-            </div>
-            <button 
-              onClick={() => setIsGeneral(!isGeneral)}
-              className={`w-11 h-6 rounded-full transition-colors relative flex items-center px-1 cursor-pointer ${isGeneral ? 'bg-[#0033A0]' : 'bg-white/10'}`}
-            >
-              <div className={`w-4 h-4 bg-white rounded-full transition-transform ${isGeneral ? 'translate-x-5' : 'translate-x-0'}`} />
-            </button>
           </div>
         </div>
 

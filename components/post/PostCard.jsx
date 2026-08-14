@@ -122,6 +122,48 @@ const PostCard = ({ post, onReport, onQuickProfile, onDelete }) => {
     }
   };
 
+  const handleMarkAsSolved = async () => {
+    if (!window.confirm('Mark this post as solved?')) return;
+    setIsSubmitting(true);
+    try {
+      const { error } = await supabase.from('posts').update({ is_solved: true }).eq('id', post.id);
+      if (error) throw error;
+      window.location.reload();
+    } catch (err) {
+      console.error(err);
+      alert('Failed to mark as solved.');
+    } finally {
+      setIsSubmitting(false);
+      setOpenDropdownId(false);
+    }
+  };
+
+  const handleMarkAsBestAnswer = async (replyId) => {
+    if (!window.confirm('Mark this as the Best Response? This will close the discussion.')) return;
+    setIsSubmitting(true);
+    try {
+      // 1. Mark the comment as the best answer
+      const { error: commentError } = await supabase
+        .from('comments')
+        .update({ is_best_answer: true })
+        .eq('id', replyId);
+      if (commentError) throw commentError;
+
+      // 2. Mark the post as solved
+      const { error: postError } = await supabase
+        .from('posts')
+        .update({ is_solved: true })
+        .eq('id', post.id);
+      if (postError) throw postError;
+
+      window.location.reload();
+    } catch (err) {
+      console.error(err);
+      alert('Failed to mark as best response.');
+      setIsSubmitting(false);
+    }
+  };
+
   const toggleReplies = () => {
     if (!showReplies) {
       fetchReplies();
@@ -134,7 +176,7 @@ const PostCard = ({ post, onReport, onQuickProfile, onDelete }) => {
     const { data, error } = await supabase
       .from('comments')
       .select(`
-        id, content, created_at,
+        id, content, created_at, is_best_answer,
         profiles(username, display_name, avatar_url)
       `)
       .eq('post_id', post.id)
@@ -150,6 +192,24 @@ const PostCard = ({ post, onReport, onQuickProfile, onDelete }) => {
     if (!replyContent.trim() || !user) return;
     setIsSubmitting(true);
     try {
+      // --- AI Moderation Step ---
+      const modRes = await fetch('/api/moderate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: 'Reply to post',
+          content: replyContent.trim()
+        })
+      });
+
+      if (modRes.ok) {
+        const modData = await modRes.json();
+        if (modData.isSafe === false) {
+          throw new Error(`Your reply was blocked by Auto-Moderator: ${modData.reason || 'Inappropriate content'}`);
+        }
+      }
+      // --------------------------
+
       const { data, error } = await supabase
         .from('comments')
         .insert({
@@ -158,7 +218,7 @@ const PostCard = ({ post, onReport, onQuickProfile, onDelete }) => {
           content: replyContent
         })
         .select(`
-          id, content, created_at,
+          id, content, created_at, is_best_answer,
           profiles(username, display_name, avatar_url)
         `)
         .single();
@@ -176,7 +236,7 @@ const PostCard = ({ post, onReport, onQuickProfile, onDelete }) => {
   };
 
   return (
-    <article className="bg-[#1A1B22] border border-white/5 rounded-2xl p-4 sm:p-5 hover:border-white/10 transition-colors cursor-pointer group">
+    <article className="bg-[#1A1B22] border border-white/5 rounded-2xl p-4 sm:p-5 hover:border-white/10 transition-colors cursor-pointer group relative">
       {/* Post Header */}
       <div className="flex justify-between items-center mb-3">
         <div className="flex items-center gap-3">
@@ -216,6 +276,16 @@ const PostCard = ({ post, onReport, onQuickProfile, onDelete }) => {
               <div className="fixed inset-0 z-10" onClick={(e) => { e.stopPropagation(); setOpenDropdownId(false); }}></div>
               <div className="absolute right-0 mt-2 w-48 bg-[#1A1B22] border border-white/10 rounded-xl shadow-xl overflow-hidden z-20 animate-in fade-in slide-in-from-top-2 duration-150">
                 <div className="p-1">
+                  {user?.id === post.author_id && !post.is_solved && repliesCount === 0 && (
+                    <button 
+                      onClick={(e) => { e.stopPropagation(); handleMarkAsSolved(); }}
+                      disabled={isSubmitting}
+                      className="w-full flex items-center gap-3 px-3 py-2 text-sm text-[#00E5FF] hover:text-[#00B3CC] hover:bg-[#00E5FF]/10 rounded-lg transition-colors text-left disabled:opacity-50"
+                    >
+                      <Bookmark size={16} />
+                      Mark as Solved
+                    </button>
+                  )}
                   {user?.id === post.author_id && (
                     <button 
                       onClick={(e) => { e.stopPropagation(); handleDeletePost(); }}
@@ -243,6 +313,11 @@ const PostCard = ({ post, onReport, onQuickProfile, onDelete }) => {
       {/* Post Content */}
       <div className="pl-0 sm:pl-[52px] space-y-3">
         <div className="flex items-center gap-2 flex-wrap">
+          {post.is_solved && (
+            <span className="bg-[#00E5FF]/20 text-[#00E5FF] border border-[#00E5FF]/30 text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wider flex items-center gap-1">
+              ✓ Solved
+            </span>
+          )}
           {post.tags?.includes('hot') && (
             <span className="bg-yellow-400 text-[#1A1B22] text-[9px] font-bold px-2 py-0.5 rounded uppercase tracking-wider">
               Hot Topic
@@ -339,9 +414,16 @@ const PostCard = ({ post, onReport, onQuickProfile, onDelete }) => {
                 
                 {replies.length > 0 ? (
                   replies.map((reply, idx) => (
-                    <div key={reply.id} className="relative flex gap-3 pt-3 group z-10">
-                      <div className="flex flex-col items-center">
-                        <div className="relative w-8 h-8 rounded-full overflow-hidden shrink-0 border border-white/10 bg-[#0C0E14] ring-4 ring-[#1A1B22]">
+                    <div 
+                      key={reply.id} 
+                      className={`relative flex gap-3 pt-3 pb-4 px-3 mt-2 group z-10 rounded-xl transition-colors border ${
+                        reply.is_best_answer 
+                          ? 'bg-[#00E5FF]/5 border-[#00E5FF]/30 shadow-[0_0_15px_rgba(0,229,255,0.1)]' 
+                          : 'border-transparent hover:bg-white/5'
+                      }`}
+                    >
+                      <div className="flex flex-col items-center pt-1">
+                        <div className={`relative w-8 h-8 rounded-full overflow-hidden shrink-0 border bg-[#0C0E14] ring-4 ring-[#1A1B22] ${reply.is_best_answer ? 'border-[#00E5FF]' : 'border-white/10'}`}>
                           {reply.profiles?.avatar_url ? (
                             <Image src={reply.profiles.avatar_url} alt={reply.profiles.display_name} fill className="object-cover" />
                           ) : (
@@ -350,20 +432,39 @@ const PostCard = ({ post, onReport, onQuickProfile, onDelete }) => {
                         </div>
                       </div>
                       
-                      <div className="flex-1 pb-4 border-b border-white/5 group-hover:border-white/10 transition-colors">
-                        <div className="flex items-center gap-1.5 mb-1 flex-wrap">
-                          <span 
-                            className="font-bold text-[14px] text-white hover:underline cursor-pointer"
-                            onClick={(e) => { e.stopPropagation(); onQuickProfile && onQuickProfile(reply.author_id); }}
-                          >
-                            {reply.profiles?.display_name || 'Anonymous'}
-                          </span>
-                          <span className="text-[14px] text-[#8E909E]">@{reply.profiles?.username || 'unknown'}</span>
-                          <span className="text-[14px] text-[#8E909E]">· {timeAgo(reply.created_at)}</span>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between gap-1.5 mb-1 flex-wrap">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span 
+                              className="font-bold text-[14px] text-white hover:underline cursor-pointer truncate max-w-[120px] sm:max-w-none"
+                              onClick={(e) => { e.stopPropagation(); onQuickProfile && onQuickProfile(reply.author_id); }}
+                            >
+                              {reply.profiles?.display_name || 'Anonymous'}
+                            </span>
+                            <span className="text-[14px] text-[#8E909E] truncate max-w-[100px] sm:max-w-none">@{reply.profiles?.username || 'unknown'}</span>
+                            <span className="text-[14px] text-[#8E909E] shrink-0">· {timeAgo(reply.created_at)}</span>
+                          </div>
+                          
+                          {reply.is_best_answer && (
+                            <span className="bg-[#00E5FF]/10 text-[#00E5FF] border border-[#00E5FF]/20 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider flex items-center gap-1 shrink-0">
+                              <Bookmark size={10} className="fill-current" /> Best Response
+                            </span>
+                          )}
                         </div>
-                        <p className="text-[14px] text-white/90 leading-relaxed whitespace-pre-wrap">{reply.content}</p>
+                        <p className="text-[14px] text-white/90 leading-relaxed whitespace-pre-wrap break-words">{reply.content}</p>
                         
-                        {/* Interactive mini-actions for replies could go here later */}
+                        {/* Interactive mini-actions for replies */}
+                        <div className="mt-2 flex items-center justify-end">
+                          {user?.id === post.author_id && !post.is_solved && !reply.is_best_answer && (
+                            <button
+                              onClick={(e) => { e.stopPropagation(); handleMarkAsBestAnswer(reply.id); }}
+                              disabled={isSubmitting}
+                              className="text-[11px] font-semibold text-[#00E5FF] hover:text-[#00B3CC] hover:bg-[#00E5FF]/10 px-2.5 py-1 rounded transition-colors disabled:opacity-50 flex items-center gap-1 opacity-0 group-hover:opacity-100"
+                            >
+                              <Bookmark size={12} /> Mark as Best Response
+                            </button>
+                          )}
+                        </div>
                       </div>
                     </div>
                   ))

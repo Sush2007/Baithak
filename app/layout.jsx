@@ -56,17 +56,20 @@ export const metadata = {
 };
 
 import { Toaster } from 'react-hot-toast';
+import { CSPostHogProvider } from './providers';
 
 export default function RootLayout({ children }) {
   return (
     <html lang="en" className={plusJakartaSans.className}>
       <body suppressHydrationWarning>
-        <AuthProvider>
-          {children}
-        </AuthProvider>
-        <Toaster position="bottom-right" toastOptions={{ style: { background: '#1A1B22', color: '#fff', border: '1px solid rgba(255,255,255,0.1)' } }} />
-        <Analytics />
-        <SpeedInsights />
+        <CSPostHogProvider>
+          <AuthProvider>
+            {children}
+          </AuthProvider>
+          <Toaster position="bottom-right" toastOptions={{ style: { background: '#1A1B22', color: '#fff', border: '1px solid rgba(255,255,255,0.1)' } }} />
+          <Analytics />
+          <SpeedInsights />
+        </CSPostHogProvider>
       </body>
     </html>
   );

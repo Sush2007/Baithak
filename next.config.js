@@ -24,6 +24,7 @@ const nextConfig = {
         hostname: 'images.unsplash.com',
       },
     ],
+    minimumCacheTTL: 31536000, // 1 year cache for remote images
   },
 };
 

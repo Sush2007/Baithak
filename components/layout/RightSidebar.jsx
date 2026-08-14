@@ -7,49 +7,7 @@ import { supabase } from '../../lib/supabaseClient';
 
 const RightSidebar = () => {
   const { user } = useAuth();
-  const [trendingTags, setTrendingTags] = useState([]);
-  
-  useEffect(() => {
-    const fetchTrendingTags = async () => {
-      try {
-        const { data, error } = await supabase
-          .from('posts')
-          .select('tags')
-          .order('created_at', { ascending: false })
-          .limit(100);
-          
-        if (error) throw error;
-        
-        // Aggregate tags
-        const tagCounts = {};
-        data.forEach(post => {
-          if (Array.isArray(post.tags)) {
-            post.tags.forEach(tag => {
-              if (tag === 'general') return; // skip general tag
-              tagCounts[tag] = (tagCounts[tag] || 0) + 1;
-            });
-          }
-        });
-        
-        // Sort tags by frequency and get top 8
-        const sortedTags = Object.entries(tagCounts)
-          .sort((a, b) => b[1] - a[1])
-          .slice(0, 8)
-          .map(entry => entry[0]);
-          
-        if (sortedTags.length > 0) {
-          setTrendingTags(sortedTags);
-        } else {
-          setTrendingTags(['Mechanical', 'CSE', 'Internships', 'Placements']);
-        }
-      } catch (err) {
-        console.error('Failed to fetch trending tags:', err);
-        setTrendingTags(['Mechanical', 'CSE', 'Internships', 'Placements']);
-      }
-    };
-    
-    fetchTrendingTags();
-  }, []);
+
 
   return (
     <aside className="hidden lg:flex flex-col h-screen sticky top-0 py-6 pl-4 border-l border-white/5 space-y-6 overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
@@ -80,23 +38,6 @@ const RightSidebar = () => {
         </div>
       </div>
 
-      {/* Trending Tags Widget */}
-      <div className="bg-[#1A1B22] border border-white/5 rounded-2xl p-6 shrink-0">
-        <div className="flex items-center gap-2 mb-4">
-          <TrendingUp size={14} className="text-[#8FAAFF]" />
-          <span className="text-[11px] font-medium text-white/40 tracking-wider uppercase">TRENDING TAGS</span>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          {trendingTags.map((tag, idx) => (
-            <span 
-              key={idx} 
-              className="text-[12px] font-medium text-[#C4C5D5] bg-[#0C0E14] border border-[#33343C] hover:border-[#8FAAFF] hover:text-[#8FAAFF] transition-colors px-3 py-1.5 rounded-lg cursor-pointer"
-            >
-              #{tag}
-            </span>
-          ))}
-        </div>
-      </div>
 
       {/* Get Verified Widget */}
       <div className="bg-[radial-gradient(ellipse_at_top_left,_var(--tw-gradient-stops))] from-[#1C2136] via-[#1A1B22] to-[#1A1B22] border border-white/5 rounded-2xl p-6 space-y-4 shrink-0">
@@ -107,39 +48,14 @@ const RightSidebar = () => {
         <p className="text-[11px] text-white/60 leading-relaxed pr-2">
           Unlock verified badge, full community access, anonymous discussions, and more.
         </p>
-        <div className="flex gap-3 pt-2">
-          <button 
-            onClick={() => alert('Verification Gateway coming soon!')}
-            className="bg-[#0033A0] hover:bg-[#002B8A] text-white text-[13px] font-medium px-6 py-2 rounded-lg transition-colors shadow-[inset_0px_1px_0px_0px_rgba(255,255,255,0.1)]"
-          >
-            Verify Now
-          </button>
-          <button 
-            onClick={() => alert('Maybe later!')}
-            className="bg-transparent border border-[#33343C] hover:bg-white/5 text-white text-[13px] font-medium px-5 py-2 rounded-lg transition-colors"
-          >
-            Later
-          </button>
-        </div>
-      </div>
-
-      {/* Verified Student Widget (Revealed from Mockup) */}
-      <div className="bg-[#1A1B22] border border-white/5 rounded-2xl p-6 space-y-4 shrink-0">
-        <div className="flex items-center gap-2">
-          <BadgeCheck size={18} className="text-[#FFC300]" fill="currentColor" stroke="#1A1B22" strokeWidth={2} />
-          <span className="text-[14px] font-bold text-white">Verified Student</span>
-        </div>
-        <div className="space-y-1">
-          <p className="text-[11px] text-white/60">Your account is currently linked to</p>
-          <p className="text-[12px] font-semibold text-white truncate">arivers@cs.stanford.edu</p>
-        </div>
-        <div className="bg-[#111216] border border-white/5 rounded-xl p-3 flex gap-2.5 items-start mt-2">
-          <Lock size={12} className="text-white/40 shrink-0 mt-0.5" />
-          <p className="text-[9px] text-white/40 leading-[1.4] tracking-wide">
-            Verification details locked. Contact support to change.
+        <div className="pt-2">
+          <p className="text-[16px] font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-[#8FAAFF] to-[#B6C4FF] animate-pulse tracking-wide">
+            Coming Soon ✨
           </p>
         </div>
       </div>
+
+
       
     </aside>
   );

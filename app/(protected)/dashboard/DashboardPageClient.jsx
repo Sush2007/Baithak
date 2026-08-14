@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
+import { useWindowVirtualizer } from '@tanstack/react-virtual';
 import Image from 'next/image';
 import { MessageSquare, ArrowUpCircle, Eye, Share2, MoreHorizontal, ChevronDown, Bookmark, Flag, AlertTriangle, X } from 'lucide-react';
 import QuickProfileModal from '../../../components/modals/QuickProfileModal';
@@ -11,7 +12,8 @@ import { supabase } from '../../../lib/supabaseClient';
 import { useAuth } from '../../../context/AuthContext';
 
 const TABS = ['For You', 'Latest', 'Trending', 'Unanswered', 'Solved'];
-const FILTERS = ['Branch', 'Tags', 'Club'];
+
+
 
 // Removed inline ReportModal
 
@@ -19,15 +21,41 @@ const DashboardPageClient = () => {
   const { user } = useAuth();
   const router = useRouter();
   const [activeTab, setActiveTab] = useState('For You');
+  const [activeTagFilter, setActiveTagFilter] = useState('All');
+  const [dynamicTags, setDynamicTags] = useState(['All']);
   const [openDropdownId, setOpenDropdownId] = useState(null);
   const [reportModalPost, setReportModalPost] = useState(null);
   const [quickProfileUserId, setQuickProfileUserId] = useState(null);
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  const virtualizer = useWindowVirtualizer({
+    count: posts.length,
+    estimateSize: () => 200, // Estimated height of a PostCard
+    overscan: 5,
+  });
+
+  const scrollRef = React.useRef(null);
+
+  // Allow horizontal scrolling with mouse wheel on desktop
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+
+    const handleWheel = (e) => {
+      if (e.deltaY !== 0) {
+        e.preventDefault();
+        el.scrollLeft += e.deltaY;
+      }
+    };
+
+    el.addEventListener('wheel', handleWheel, { passive: false });
+    return () => el.removeEventListener('wheel', handleWheel);
+  }, []);
+
   useEffect(() => {
     fetchPosts();
-  }, [activeTab]);
+  }, [activeTab, activeTagFilter]);
 
   const fetchPosts = async () => {
     try {
@@ -43,19 +71,33 @@ const DashboardPageClient = () => {
 
       if (activeTab === 'Unanswered') {
         // Need to filter posts where comment count is 0 in JS for now, as Supabase RPC might be needed for complex join filters.
-        query = query.order('created_at', { ascending: false });
+        query = query.neq('is_solved', true).order('created_at', { ascending: false });
       } else if (activeTab === 'Solved') {
-        query = query.contains('tags', ['solved']).order('created_at', { ascending: false });
+        query = query.eq('is_solved', true).order('created_at', { ascending: false });
       } else if (activeTab === 'Trending') {
-        query = query.order('created_at', { ascending: false }); // Sort in JS by likes
+        query = query.neq('is_solved', true).order('created_at', { ascending: false }); // Sort in JS by likes
       } else {
-        query = query.order('created_at', { ascending: false });
+        query = query.neq('is_solved', true).order('created_at', { ascending: false });
       }
 
       const { data, error } = await query;
       if (error) throw error;
       
       let finalData = data || [];
+
+      // Extract unique tags from fetched data before filtering
+      const tagsSet = new Set();
+      finalData.forEach(p => {
+        if (p.tags && Array.isArray(p.tags)) {
+          p.tags.forEach(t => tagsSet.add(t));
+        }
+      });
+      setDynamicTags(['All', ...Array.from(tagsSet)]);
+      
+      if (activeTagFilter !== 'All') {
+        finalData = finalData.filter(p => p.tags && p.tags.includes(activeTagFilter));
+      }
+      
       if (activeTab === 'Unanswered') {
         finalData = finalData.filter(p => p.comments[0]?.count === 0);
       } else if (activeTab === 'Trending') {
@@ -144,10 +186,31 @@ const DashboardPageClient = () => {
             </button>
           ))}
         </div>
-      </div>
 
+        {/* YouTube-style Horizontal Scrollable Tags */}
+        <div className="py-3 px-4 border-b border-white/5 bg-[#0C0E14]">
+          <div 
+            ref={scrollRef}
+            className="flex gap-2 overflow-x-auto no-scrollbar scroll-smooth"
+          >
+            {dynamicTags.map((tag) => (
+              <button
+                key={tag}
+                onClick={() => setActiveTagFilter(tag)}
+                className={`whitespace-nowrap px-3.5 py-1.5 rounded-lg text-[13px] font-medium transition-colors ${
+                  activeTagFilter === tag
+                    ? 'bg-white text-black'
+                    : 'bg-white/5 text-white/70 hover:bg-white/10'
+                }`}
+              >
+                {tag === 'All' ? tag : `#${tag}`}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
       {/* Feed Content */}
-      <div className="mt-6 space-y-4">
+      <div className="mt-6">
         {loading ? (
           <div className="flex justify-center p-8">
              <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
@@ -155,15 +218,39 @@ const DashboardPageClient = () => {
         ) : posts.length === 0 ? (
           <div className="text-center p-8 text-white/50">No discussions found.</div>
         ) : (
-          posts.map(post => (
-            <PostCard 
-              key={post.id} 
-              post={post} 
-              onReport={setReportModalPost} 
-              onQuickProfile={(id) => router.push(`/profile/${id}`)}
-              onDelete={(deletedId) => setPosts(prev => prev.filter(p => p.id !== deletedId))}
-            />
-          ))
+          <div 
+            style={{ 
+              height: `${virtualizer.getTotalSize()}px`, 
+              width: '100%', 
+              position: 'relative' 
+            }}
+          >
+            {virtualizer.getVirtualItems().map((virtualItem) => {
+              const post = posts[virtualItem.index];
+              return (
+                <div
+                  key={virtualItem.key}
+                  data-index={virtualItem.index}
+                  ref={virtualizer.measureElement}
+                  style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    width: '100%',
+                    transform: `translateY(${virtualItem.start}px)`,
+                    paddingBottom: '1rem',
+                  }}
+                >
+                  <PostCard 
+                    post={post} 
+                    onReport={setReportModalPost} 
+                    onQuickProfile={(id) => router.push(`/profile/${id}`)}
+                    onDelete={(deletedId) => setPosts(prev => prev.filter(p => p.id !== deletedId))}
+                  />
+                </div>
+              );
+            })}
+          </div>
         )}
       </div>
       
