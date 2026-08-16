@@ -23,6 +23,11 @@ const nextConfig = {
         protocol: 'https',
         hostname: 'images.unsplash.com',
       },
+      {
+        protocol: 'https',
+        hostname: 'cdn.baithakpe.com',
+        pathname: '/**',
+      },
     ],
     minimumCacheTTL: 31536000, // 1 year cache for remote images
   },

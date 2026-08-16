@@ -44,14 +44,22 @@ export default function OpenDiscussionModal({ isOpen, onClose }) {
     // Compress images if it's an image
     if (file.type.startsWith('image/')) {
       try {
+        setIsSubmitting(true);
+        // Force the progress bar to show so the user knows it's doing something
+        setUploadProgress(5); 
+        
         const options = {
-          maxSizeMB: 1,
-          maxWidthOrHeight: 1920,
+          maxSizeMB: 1.5,
+          maxWidthOrHeight: 1280,
+          initialQuality: 0.7,
           useWebWorker: true,
         };
         processedFile = await imageCompression(file, options);
       } catch (error) {
         console.error("Error compressing image:", error);
+      } finally {
+        setIsSubmitting(false);
+        setUploadProgress(0);
       }
     }
 
@@ -183,7 +191,7 @@ export default function OpenDiscussionModal({ isOpen, onClose }) {
       }
       // --------------------------
 
-      const { error } = await supabase.from('posts').insert([
+      const { data: insertedPost, error } = await supabase.from('posts').insert([
         {
           author_id: user.id,
           title: title.trim(),
@@ -192,10 +200,25 @@ export default function OpenDiscussionModal({ isOpen, onClose }) {
           media_url: finalMediaUrl,
           media_type: finalMediaType
         }
-      ]);
+      ]).select().single();
 
       if (error) throw error;
       
+      // Award Honor Points
+      try {
+        await fetch('/api/honor/award', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            actionType: 'ASK_DISCUSSION',
+            points: 3,
+            referenceId: insertedPost.id
+          })
+        });
+      } catch (honorErr) {
+        console.error('Failed to award honor points', honorErr);
+      }
+
       setTitle('');
       setContent('');
       setMediaFile(null);

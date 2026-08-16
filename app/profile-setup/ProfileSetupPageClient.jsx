@@ -3,7 +3,9 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { supabase } from '../../lib/supabaseClient';
-import { ArrowLeft, User, Camera, Check, AlertCircle, ArrowRight, Loader2, Sparkles, UploadCloud } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { ArrowLeft, User, Camera, Check, AlertCircle, ArrowRight, Loader2, Sparkles, UploadCloud, CheckCircle2 } from 'lucide-react';
+import imageCompression from 'browser-image-compression';
 import Button from '../../components/ui/Button';
 import ProtectedRoute from '../../components/ProtectedRoute';
 import Image from 'next/image';
@@ -154,21 +156,38 @@ const ProfileSetupPageClient = () => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Strict validation: max 4MB, must be image
+    // Strict validation: must be image
     if (!file.type.startsWith('image/')) {
       setUploadError('Only image files are allowed.');
       return;
     }
-    if (file.size > 4 * 1024 * 1024) {
-      setUploadError('Image size must be less than 4MB.');
+    if (file.size > 20 * 1024 * 1024) {
+      setUploadError('Image size must be less than 20MB.');
       return;
     }
 
     setUploadError('');
-    setSelectedFile(file);
+    setIsSubmitting(true);
+    let processedFile = file;
+
+    try {
+      const options = {
+        maxSizeMB: 0.5, // Avatars should be small
+        maxWidthOrHeight: 800,
+        initialQuality: 0.7,
+        useWebWorker: true,
+      };
+      processedFile = await imageCompression(file, options);
+    } catch (error) {
+      console.error("Error compressing image:", error);
+    } finally {
+      setIsSubmitting(false);
+    }
+
+    setSelectedFile(processedFile);
 
     // Instantly show local preview
-    const objectUrl = URL.createObjectURL(file);
+    const objectUrl = URL.createObjectURL(processedFile);
     setLocalPreviewUrl(objectUrl);
   };
 

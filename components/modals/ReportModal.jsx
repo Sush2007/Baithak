@@ -14,8 +14,10 @@ const ReportModal = ({ isOpen, onClose, post }) => {
     if (!user || !post) return;
     setIsSubmitting(true);
     try {
+      const isComment = post.type === 'comment';
       const { error } = await supabase.from('reports').insert({
-        post_id: post.id,
+        post_id: isComment ? null : post.id,
+        comment_id: isComment ? post.id : null,
         reporter_id: user.id,
         reason: reportReason,
         details: details

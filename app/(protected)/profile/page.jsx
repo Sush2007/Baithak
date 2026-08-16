@@ -27,8 +27,8 @@ export default function ProfilePage() {
         const { data, error } = await supabase
           .from('posts')
           .select(`
-            *,
-            profiles(display_name, username, avatar_url),
+            *, 
+            profiles!posts_author_id_fkey(display_name, username, avatar_url),
             likes(count),
             comments(count)
           `)

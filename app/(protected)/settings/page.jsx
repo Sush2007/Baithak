@@ -6,10 +6,25 @@ import { User, Bell, Shield, Award, AlertTriangle, Edit2, CheckCircle2, ChevronR
 import { useAuth } from '../../../context/AuthContext';
 import { supabase } from '../../../lib/supabaseClient';
 import { usePushNotifications } from '../../../hooks/usePushNotifications';
+import { getCurrentHonorBadge, getNextHonorBadge } from '../../../lib/badges';
+import Link from 'next/link';
 
 export default function SettingsPage() {
   const { profile, user } = useAuth();
   const { isSupported, isSubscribed, isLoading, subscribe, unsubscribe } = usePushNotifications();
+  
+  const currentBadge = getCurrentHonorBadge(profile?.lifetime_honor || 0);
+  const nextBadge = getNextHonorBadge(profile?.lifetime_honor || 0);
+  const hp = profile?.lifetime_honor || 0;
+  
+  // Calculate percentage
+  let percentage = 100;
+  if (nextBadge) {
+    const prevRequirement = currentBadge?.requirement || 0;
+    const pointsNeeded = nextBadge.requirement - prevRequirement;
+    const pointsEarned = hp - prevRequirement;
+    percentage = Math.min(100, Math.max(0, (pointsEarned / pointsNeeded) * 100));
+  }
   
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState({
@@ -318,29 +333,29 @@ export default function SettingsPage() {
         <div className="grid grid-cols-2 gap-4 mb-6">
           <div className="bg-[#0C0E14] border border-white/5 rounded-xl p-4 text-center">
             <p className="text-[10px] text-[#8E909E] uppercase font-bold tracking-wider mb-2">Current Points</p>
-            <p className="text-2xl font-bold text-white">2,450</p>
+            <p className="text-2xl font-bold text-white">{hp.toLocaleString()}</p>
           </div>
-          <div className="bg-[#0C0E14] border border-white/5 rounded-xl p-4 text-center">
+          <div className="bg-[#0C0E14] border border-white/5 rounded-xl p-4 text-center flex flex-col items-center justify-center">
             <p className="text-[10px] text-[#8E909E] uppercase font-bold tracking-wider mb-2">Current Badge</p>
-            <p className="text-base font-bold text-[#FFC300]">Gold Scholar</p>
+            <p className="text-sm font-bold text-[#FFC300] whitespace-nowrap">{currentBadge?.name || 'Loading...'}</p>
           </div>
         </div>
 
         <div className="space-y-4">
           <div>
             <div className="flex justify-between text-xs font-medium mb-1">
-              <span className="text-white/80">Badge Progress: Platinum</span>
-              <span className="text-[#FFC300]">2450 / 5000</span>
+              <span className="text-white/80">Badge Progress: {nextBadge ? nextBadge.name : 'Max Level Reached'}</span>
+              <span className="text-[#FFC300]">{hp} / {nextBadge ? nextBadge.requirement : hp}</span>
             </div>
             <div className="w-full bg-[#0C0E14] rounded-full h-1.5 overflow-hidden border border-white/5">
-              <div className="bg-gradient-to-r from-[#FFC300] to-[#FF8C00] h-full rounded-full" style={{ width: '49%' }} />
+              <div className="bg-gradient-to-r from-[#FFC300] to-[#FF8C00] h-full rounded-full transition-all duration-500" style={{ width: `${percentage}%` }} />
             </div>
           </div>
           
-          <button className="w-full bg-[#0C0E14] border border-white/5 hover:border-white/10 rounded-xl px-4 py-3 text-sm text-left text-white transition-colors flex items-center justify-between group mt-2">
+          <Link href="/dashboard/honor" className="w-full bg-[#0C0E14] border border-white/5 hover:border-white/10 rounded-xl px-4 py-3 text-sm text-left text-white transition-colors flex items-center justify-between group mt-2">
             <span className="font-medium text-[#8E909E] group-hover:text-white transition-colors">View Honor Point History</span>
             <ChevronRight size={16} className="text-[#8E909E] group-hover:text-white transition-colors" />
-          </button>
+          </Link>
         </div>
       </section>
 

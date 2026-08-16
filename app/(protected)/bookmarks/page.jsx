@@ -28,7 +28,7 @@ export default function BookmarksPage() {
           post_id,
           post:posts (
             *,
-            profiles(username, display_name, avatar_url),
+            profiles!posts_author_id_fkey(username, display_name, avatar_url),
             likes(count),
             comments(count)
           )

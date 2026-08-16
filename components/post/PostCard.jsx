@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Image from 'next/image';
 import { MessageSquare, ArrowUpCircle, Eye, Share2, MoreHorizontal, Bookmark, Flag, Send, Trash2 } from 'lucide-react';
 import { supabase } from '../../lib/supabaseClient';
@@ -44,6 +44,38 @@ const PostCard = ({ post, onReport, onQuickProfile, onDelete }) => {
     }
   }, [user, post.id]);
 
+  // View Tracking Logic
+  const postRef = useRef(null);
+  const [viewTracked, setViewTracked] = useState(false);
+  const [localViewsCount, setLocalViewsCount] = useState(post.views_count || 0);
+
+  useEffect(() => {
+    if (!postRef.current || viewTracked || !user) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          // Unobserve and mark as tracked locally to prevent multiple fires
+          observer.disconnect();
+          setViewTracked(true);
+          
+          // Increment via Supabase RPC
+          supabase.rpc('increment_view', { p_id: post.id, u_id: user.id })
+            .then(({ error }) => {
+              if (!error) {
+                setLocalViewsCount(prev => prev + 1);
+              }
+            });
+        }
+      },
+      { threshold: 0.5 } // Trigger when 50% of the post is visible
+    );
+
+    observer.observe(postRef.current);
+    
+    return () => observer.disconnect();
+  }, [post.id, user, viewTracked]);
+
   const checkInteractions = async () => {
     const { data: likeData } = await supabase.from('likes').select('id').eq('post_id', post.id).eq('user_id', user.id).single();
     if (likeData) setIsLiked(true);
@@ -64,6 +96,13 @@ const PostCard = ({ post, onReport, onQuickProfile, onDelete }) => {
         setIsLiked(true);
         setLikesCount(prev => prev + 1);
         await supabase.from('likes').insert({ post_id: post.id, user_id: user.id });
+        
+        // Award Honor Points
+        fetch('/api/honor/award', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ actionType: 'RECEIVE_UPVOTE', points: 2, referenceId: post.id })
+        }).catch(console.error);
       }
     } catch (err) {
       console.error(err);
@@ -82,6 +121,13 @@ const PostCard = ({ post, onReport, onQuickProfile, onDelete }) => {
       } else {
         setIsBookmarked(true);
         await supabase.from('bookmarks').insert({ post_id: post.id, user_id: user.id });
+        
+        // Award Honor Points
+        fetch('/api/honor/award', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ actionType: 'BOOKMARK', points: 1, referenceId: post.id })
+        }).catch(console.error);
       }
     } catch (err) {
       console.error(err);
@@ -156,6 +202,13 @@ const PostCard = ({ post, onReport, onQuickProfile, onDelete }) => {
         .eq('id', post.id);
       if (postError) throw postError;
 
+      // Award Honor Points
+      await fetch('/api/honor/award', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ actionType: 'BEST_ANSWER', points: 15, referenceId: replyId })
+      });
+
       window.location.reload();
     } catch (err) {
       console.error(err);
@@ -228,6 +281,13 @@ const PostCard = ({ post, onReport, onQuickProfile, onDelete }) => {
       setReplies([...replies, data]);
       setRepliesCount(prev => prev + 1);
       setReplyContent('');
+      
+      // Award Honor Points
+      fetch('/api/honor/award', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ actionType: 'HELPFUL_REPLY', points: 3, referenceId: post.id })
+      }).catch(console.error);
     } catch (err) {
       console.error('Error posting reply', err);
     } finally {
@@ -236,7 +296,7 @@ const PostCard = ({ post, onReport, onQuickProfile, onDelete }) => {
   };
 
   return (
-    <article className="bg-[#1A1B22] border border-white/5 rounded-2xl p-4 sm:p-5 hover:border-white/10 transition-colors cursor-pointer group relative">
+    <article ref={postRef} className="bg-[#1A1B22] border border-white/5 rounded-2xl p-4 sm:p-5 hover:border-white/10 transition-colors cursor-pointer group relative">
       {/* Post Header */}
       <div className="flex justify-between items-center mb-3">
         <div className="flex items-center gap-3">
@@ -296,13 +356,15 @@ const PostCard = ({ post, onReport, onQuickProfile, onDelete }) => {
                       Delete Post
                     </button>
                   )}
-                  <button 
-                    onClick={(e) => { e.stopPropagation(); setOpenDropdownId(false); onReport && onReport(post); }}
-                    className="w-full flex items-center gap-3 px-3 py-2 text-sm text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-lg transition-colors text-left"
-                  >
-                    <Flag size={16} />
-                    Report Post
-                  </button>
+                  {user?.id !== post.author_id && (
+                    <button 
+                      onClick={(e) => { e.stopPropagation(); setOpenDropdownId(false); onReport && onReport(post); }}
+                      className="w-full flex items-center gap-3 px-3 py-2 text-sm text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-lg transition-colors text-left"
+                    >
+                      <Flag size={16} />
+                      Report Post
+                    </button>
+                  )}
                 </div>
               </div>
             </>
@@ -386,7 +448,7 @@ const PostCard = ({ post, onReport, onQuickProfile, onDelete }) => {
             <div className="p-1.5 rounded-full group-hover/btn:bg-white/10 transition-colors flex items-center justify-center">
               <Eye size={18} />
             </div>
-            <span className="min-w-[20px] text-left">0</span>
+            <span className="min-w-[20px] text-left">{localViewsCount.toLocaleString()}</span>
           </button>
           <button 
             onClick={(e) => { e.stopPropagation(); handleShare(); }}
@@ -454,7 +516,15 @@ const PostCard = ({ post, onReport, onQuickProfile, onDelete }) => {
                         <p className="text-[14px] text-white/90 leading-relaxed whitespace-pre-wrap break-words">{reply.content}</p>
                         
                         {/* Interactive mini-actions for replies */}
-                        <div className="mt-2 flex items-center justify-end">
+                        <div className="mt-2 flex items-center justify-end gap-2">
+                          {user?.id !== reply.author_id && (
+                            <button
+                              onClick={(e) => { e.stopPropagation(); onReport && onReport({ ...reply, type: 'comment' }); }}
+                              className="text-[11px] font-semibold text-red-400 hover:text-red-300 hover:bg-red-500/10 px-2.5 py-1 rounded transition-colors flex items-center gap-1 opacity-0 group-hover:opacity-100"
+                            >
+                              <Flag size={12} /> Report
+                            </button>
+                          )}
                           {user?.id === post.author_id && !post.is_solved && !reply.is_best_answer && reply.author_id !== user?.id && (
                             <button
                               onClick={(e) => { e.stopPropagation(); handleMarkAsBestAnswer(reply.id); }}
