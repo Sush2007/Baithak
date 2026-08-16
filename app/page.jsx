@@ -11,13 +11,25 @@ export const metadata = {
 export default function Home() {
   const jsonLd = {
     "@context": "https://schema.org",
-    "@type": "WebSite",
-    "name": "Baithak",
-    "url": "https://baithak-web-app.vercel.app",
-    "description": "Student-centered discussion platform built to preserve campus memory and share course insights.",
+    "@type": ["WebSite", "EducationalOrganization"],
+    "name": "Baithak - VSSUT Student Discussion Platform",
+    "url": "https://baithakpe.com",
+    "description": "The official student-centered discussion platform for Veer Surendra Sai University of Technology (VSSUT), Burla. Join the campus circle.",
+    "address": {
+      "@type": "PostalAddress",
+      "addressLocality": "Burla",
+      "addressRegion": "Odisha",
+      "postalCode": "768018",
+      "addressCountry": "IN"
+    },
+    "geo": {
+      "@type": "GeoCoordinates",
+      "latitude": "21.4984",
+      "longitude": "83.8743"
+    },
     "potentialAction": {
       "@type": "SearchAction",
-      "target": "https://baithak-web-app.vercel.app/search?q={search_term_string}",
+      "target": "https://baithakpe.com/search?q={search_term_string}",
       "query-input": "required name=search_term_string"
     }
   };

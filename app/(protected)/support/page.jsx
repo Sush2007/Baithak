@@ -59,6 +59,13 @@ export default function SupportPage() {
           <p className="text-sm text-white/50 mt-1">How can we help you today?</p>
         </div>
       </div>
+      {/* Modal Overlay */}
+      {openCardIndex !== null && (
+        <SupportModal 
+          card={SUPPORT_CARDS[openCardIndex]} 
+          onClose={() => setOpenCardIndex(null)} 
+        />
+      )}
       
       {/* Support Categories */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-12">
@@ -120,50 +127,85 @@ export default function SupportPage() {
         </div>
       </div>
       
-      {/* Modal Overlay */}
-      {openCardIndex !== null && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={() => setOpenCardIndex(null)}>
-          <div 
-            className="bg-[#1A1B22] border border-white/10 rounded-3xl p-6 md:p-8 w-full max-w-lg shadow-2xl relative animate-in fade-in zoom-in-95 duration-200"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <button 
-              onClick={() => setOpenCardIndex(null)}
-              className="absolute top-6 right-6 text-white/50 hover:text-white transition-colors p-1"
-            >
-              <X size={24} />
-            </button>
-            
-            <div className="flex items-center gap-4 mb-6">
-              <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${SUPPORT_CARDS[openCardIndex].bg}`}>
-                {React.createElement(SUPPORT_CARDS[openCardIndex].icon, { size: 24, className: SUPPORT_CARDS[openCardIndex].color })}
-              </div>
-              <div>
-                <h3 className="text-xl font-bold text-white">{SUPPORT_CARDS[openCardIndex].title}</h3>
-                <p className="text-sm text-white/50">{SUPPORT_CARDS[openCardIndex].description}</p>
-              </div>
-            </div>
-            
-            <div className="flex flex-col gap-4">
-              <div className="flex flex-col gap-2">
-                <label className="text-sm font-medium text-white/80">
-                  {SUPPORT_CARDS[openCardIndex].title === 'Add your feedback' ? 'Your Feedback' : 'Description'}
-                </label>
-                <textarea 
-                  className="w-full bg-[#0C0E14] border border-white/10 rounded-xl p-4 text-sm text-white placeholder-white/30 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 min-h-[120px] resize-none transition-all"
-                  placeholder={`Write your ${SUPPORT_CARDS[openCardIndex].title.toLowerCase()} here...`}
-                />
-              </div>
-              <button 
-                onClick={() => setOpenCardIndex(null)}
-                className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-xl transition-colors w-full mt-2"
-              >
-                Submit
-              </button>
-            </div>
+    </div>
+  );
+}
+
+function SupportModal({ card, onClose }) {
+  const [message, setMessage] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleSubmit = async () => {
+    if (!message.trim() || message.trim().length < 10) {
+      alert('Please enter at least 10 characters.');
+      return;
+    }
+    setIsSubmitting(true);
+    try {
+      const res = await fetch('/api/support', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: card.title,
+          message: message.trim()
+        })
+      });
+      if (!res.ok) {
+        throw new Error('Failed to send support request');
+      }
+      alert('Thank you! Your request has been sent to our support team.');
+      onClose();
+    } catch (err) {
+      alert('An error occurred. Please try again later.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={onClose}>
+      <div 
+        className="bg-[#1A1B22] border border-white/10 rounded-3xl p-6 md:p-8 w-full max-w-lg shadow-2xl relative animate-in fade-in zoom-in-95 duration-200"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <button 
+          onClick={onClose}
+          className="absolute top-6 right-6 text-white/50 hover:text-white transition-colors p-1"
+        >
+          <X size={24} />
+        </button>
+        
+        <div className="flex items-center gap-4 mb-6">
+          <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${card.bg}`}>
+            {React.createElement(card.icon, { size: 24, className: card.color })}
+          </div>
+          <div>
+            <h3 className="text-xl font-bold text-white">{card.title}</h3>
+            <p className="text-sm text-white/50">{card.description}</p>
           </div>
         </div>
-      )}
+        
+        <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-2">
+            <label className="text-sm font-medium text-white/80">
+              {card.title === 'Add your feedback' ? 'Your Feedback' : 'Description'}
+            </label>
+            <textarea 
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+              className="w-full bg-[#0C0E14] border border-white/10 rounded-xl p-4 text-sm text-white placeholder-white/30 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 min-h-[120px] resize-none transition-all"
+              placeholder={`Write your ${card.title.toLowerCase()} here...`}
+            />
+          </div>
+          <button 
+            onClick={handleSubmit}
+            disabled={isSubmitting || message.trim().length < 10}
+            className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-semibold py-3 px-6 rounded-xl transition-colors w-full mt-2"
+          >
+            {isSubmitting ? 'Sending...' : 'Submit'}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

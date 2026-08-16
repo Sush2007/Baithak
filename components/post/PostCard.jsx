@@ -77,10 +77,10 @@ const PostCard = ({ post, onReport, onQuickProfile, onDelete }) => {
   }, [post.id, user, viewTracked]);
 
   const checkInteractions = async () => {
-    const { data: likeData } = await supabase.from('likes').select('id').eq('post_id', post.id).eq('user_id', user.id).single();
-    if (likeData) setIsLiked(true);
+    const { data: likeData } = await supabase.from('likes').select('id').eq('post_id', post.id).eq('user_id', user.id).maybeSingle();
+    setIsLiked(!!likeData);
 
-    const { data: bmData } = await supabase.from('bookmarks').select('post_id').eq('post_id', post.id).eq('user_id', user.id).single();
+    const { data: bmData } = await supabase.from('bookmarks').select('post_id').eq('post_id', post.id).eq('user_id', user.id).maybeSingle();
     if (bmData) setIsBookmarked(true);
   };
 

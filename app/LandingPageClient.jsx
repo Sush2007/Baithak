@@ -413,7 +413,7 @@ const LandingPageClient = () => {
                   onClick={signInWithGoogle}
                   className="w-full bg-white hover:bg-neutral-100 text-black font-semibold py-3.5 px-6 rounded-full flex items-center justify-center gap-3 transition-all duration-300 shadow-sm cursor-pointer text-sm animate-fade-in"
                 >
-                  <Image src="/google-logo.png" alt="Google" width={20} height={20} className="h-5 w-auto" />
+                  <Image src="/google-logo.png" alt="Google" width={20} height={20} className="h-5 w-auto" priority />
                   Sign up with Google
                 </button>
 
@@ -440,7 +440,7 @@ const LandingPageClient = () => {
                     onClick={signInWithGoogle}
                     className="w-full bg-white hover:bg-neutral-100 text-black font-semibold py-3.5 px-6 rounded-full flex items-center justify-center gap-3 transition-all duration-300 shadow-sm cursor-pointer text-sm"
                   >
-                    <Image src="/google-logo.png" alt="Google" width={20} height={20} className="h-5 w-auto" />
+                    <Image src="/google-logo.png" alt="Google" width={20} height={20} className="h-5 w-auto" priority />
                     Sign in with Google
                   </button>
                 </div>

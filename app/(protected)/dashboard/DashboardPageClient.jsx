@@ -4,8 +4,9 @@ import React, { useState, useEffect } from 'react';
 import { useWindowVirtualizer } from '@tanstack/react-virtual';
 import Image from 'next/image';
 import { MessageSquare, ArrowUpCircle, Eye, Share2, MoreHorizontal, ChevronDown, Bookmark, Flag, AlertTriangle, X } from 'lucide-react';
-import QuickProfileModal from '../../../components/modals/QuickProfileModal';
-import ReportModal from '../../../components/modals/ReportModal';
+import dynamic from 'next/dynamic';
+const QuickProfileModal = dynamic(() => import('../../../components/modals/QuickProfileModal'), { ssr: false });
+const ReportModal = dynamic(() => import('../../../components/modals/ReportModal'), { ssr: false });
 import PostCard from '../../../components/post/PostCard';
 import { useRouter } from 'next/navigation';
 import { supabase } from '../../../lib/supabaseClient';
@@ -70,14 +71,13 @@ const DashboardPageClient = () => {
         `);
 
       if (activeTab === 'Unanswered') {
-        // Need to filter posts where comment count is 0 in JS for now, as Supabase RPC might be needed for complex join filters.
-        query = query.neq('is_solved', true).order('created_at', { ascending: false });
+        query = query.or('is_solved.eq.false,is_solved.is.null').order('created_at', { ascending: false });
       } else if (activeTab === 'Solved') {
         query = query.eq('is_solved', true).order('created_at', { ascending: false });
       } else if (activeTab === 'Trending') {
-        query = query.neq('is_solved', true).order('created_at', { ascending: false }); // Sort in JS by likes
+        query = query.or('is_solved.eq.false,is_solved.is.null').order('created_at', { ascending: false });
       } else {
-        query = query.neq('is_solved', true).order('created_at', { ascending: false });
+        query = query.or('is_solved.eq.false,is_solved.is.null').order('created_at', { ascending: false });
       }
 
       const { data, error } = await query;

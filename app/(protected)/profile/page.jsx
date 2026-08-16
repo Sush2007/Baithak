@@ -146,7 +146,11 @@ export default function ProfilePage() {
             <span className="text-xs text-white/50 uppercase tracking-wider font-medium">Replies</span>
           </div>
           <div className="flex flex-col">
-            <span className="text-xl font-bold text-blue-400">2.4k</span>
+            <span className="text-xl font-bold text-blue-400">
+              {profile?.honor_points >= 1000 
+                ? (profile.honor_points / 1000).toFixed(1) + 'k' 
+                : (profile?.honor_points || 0)}
+            </span>
             <span className="text-xs text-white/50 uppercase tracking-wider font-medium">Honour Points</span>
           </div>
         </div>

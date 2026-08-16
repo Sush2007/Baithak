@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { AlertTriangle, X } from 'lucide-react';
 import { supabase } from '../../lib/supabaseClient';
 import { useAuth } from '../../context/AuthContext';
@@ -9,30 +9,56 @@ const ReportModal = ({ isOpen, onClose, post }) => {
   const [reportReason, setReportReason] = useState('');
   const [details, setDetails] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (isOpen) {
+      setReportReason('');
+      setDetails('');
+      setIsSubmitting(false);
+    }
+  }, [isOpen]);
+
   
   const handleSubmit = async () => {
-    if (!user || !post) return;
+    if (!user || !post) {
+      toast.error('Missing user or post data.');
+      return;
+    }
+    
     setIsSubmitting(true);
+    const toastId = toast.loading('Submitting report...');
+    
     try {
       const isComment = post.type === 'comment';
-      const { error } = await supabase.from('reports').insert({
-        post_id: isComment ? null : post.id,
-        comment_id: isComment ? post.id : null,
-        reporter_id: user.id,
-        reason: reportReason,
-        details: details
+      
+      const response = await fetch('/api/report', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          post_id: isComment ? null : post.id,
+          comment_id: isComment ? post.id : null,
+          reason: reportReason,
+          details: details,
+          post_content: post.content || post.text || 'No content provided'
+        })
       });
 
-      if (error) throw error;
-      toast.success('Report submitted successfully. The post has been hidden pending review.');
-      // Update local DOM to hide the post immediately if desired, or let the parent component re-fetch.
-      if (typeof window !== 'undefined') window.location.reload(); 
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to submit report');
+      }
+      
+      toast.success('Report submitted successfully. Our team will review it shortly.', { id: toastId });
+      
+      setTimeout(() => {
+        onClose();
+      }, 1500);
+
     } catch (error) {
       console.error('Error submitting report:', error);
-      toast.error('Failed to submit report. Please try again.');
-    } finally {
+      toast.error(error.message, { id: toastId });
       setIsSubmitting(false);
-      onClose();
     }
   };
 
@@ -64,7 +90,11 @@ const ReportModal = ({ isOpen, onClose, post }) => {
             <label className="text-[12px] font-bold text-[#C4C5D5] mb-4 block uppercase tracking-wide">Why are you reporting this?</label>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {['Fake profile / impersonation', 'Harassment or hate speech', 'Inappropriate content', 'Misinformation', 'Spam or unsolicited promotion', 'Other'].map(reason => (
-                <label key={reason} className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all ${reportReason === reason ? 'bg-[#FFC300]/5 border-[#FFC300]' : 'bg-[#0C0E14] border-white/5 hover:border-white/20'}`}>
+                <label 
+                  key={reason} 
+                  onClick={() => setReportReason(reason)}
+                  className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all ${reportReason === reason ? 'bg-[#FFC300]/5 border-[#FFC300]' : 'bg-[#0C0E14] border-white/5 hover:border-white/20'}`}
+                >
                   <div className={`w-4 h-4 rounded-full border flex items-center justify-center shrink-0 ${reportReason === reason ? 'border-[#FFC300]' : 'border-white/40'}`}>
                     {reportReason === reason && <div className="w-2 h-2 rounded-full bg-[#FFC300]" />}
                   </div>

@@ -1,13 +1,28 @@
-export default async function sitemap() {
-  const baseUrl = 'https://baithakpe.com';
-  
-  // Public crawlable routes
-  const routes = ['', '/about', '/terms', '/privacy'];
-
-  return routes.map((route) => ({
-    url: `${baseUrl}${route}`,
-    lastModified: new Date().toISOString().split('T')[0],
-    changeFrequency: route === '' ? 'daily' : 'weekly',
-    priority: route === '' ? 1.0 : 0.8,
-  }));
+export default function sitemap() {
+  return [
+    {
+      url: 'https://baithakpe.com',
+      lastModified: new Date(),
+      changeFrequency: 'always',
+      priority: 1,
+    },
+    {
+      url: 'https://baithakpe.com/about',
+      lastModified: new Date(),
+      changeFrequency: 'monthly',
+      priority: 0.8,
+    },
+    {
+      url: 'https://baithakpe.com/privacy',
+      lastModified: new Date(),
+      changeFrequency: 'yearly',
+      priority: 0.5,
+    },
+    {
+      url: 'https://baithakpe.com/terms',
+      lastModified: new Date(),
+      changeFrequency: 'yearly',
+      priority: 0.5,
+    },
+  ]
 }

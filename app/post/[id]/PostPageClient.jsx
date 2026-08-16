@@ -5,12 +5,14 @@ import Link from 'next/link';
 import { supabase } from '../../../lib/supabaseClient';
 import PostCard from '../../../components/post/PostCard';
 import ProtectedRoute from '../../../components/ProtectedRoute';
+import ReportModal from '../../../components/modals/ReportModal';
 import { ArrowLeft } from 'lucide-react';
 import Image from 'next/image';
 
 const PostPageClient = ({ postId }) => {
   const [post, setPost] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [reportModalPost, setReportModalPost] = useState(null);
 
   useEffect(() => {
     fetchPost();
@@ -70,11 +72,18 @@ const PostPageClient = ({ postId }) => {
               <p>The discussion you are looking for may have been deleted or does not exist.</p>
             </div>
           ) : (
-            <PostCard 
-              post={post} 
-              onReport={(p) => console.log('Report', p)}
-              onQuickProfile={(id) => console.log('Profile', id)}
-            />
+            <>
+              <PostCard 
+                post={post} 
+                onReport={setReportModalPost}
+                onQuickProfile={(id) => console.log('Profile', id)}
+              />
+              <ReportModal 
+                isOpen={!!reportModalPost} 
+                post={reportModalPost} 
+                onClose={() => setReportModalPost(null)} 
+              />
+            </>
           )}
         </main>
       </div>

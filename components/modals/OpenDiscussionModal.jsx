@@ -171,7 +171,7 @@ export default function OpenDiscussionModal({ isOpen, onClose }) {
       }
 
       // --- AI Moderation Step ---
-      setUploadProgress(95); // Just a UI bump
+      if (mediaFile) setUploadProgress(95);
       const modRes = await fetch('/api/moderate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

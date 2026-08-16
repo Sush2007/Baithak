@@ -69,44 +69,69 @@ export default function SettingsPage() {
 
   const handleToggle = (key) => setToggles(prev => ({ ...prev, [key]: !prev[key] }));
 
+  // Username Limit Calculation
+  const lastChange = profile?.last_username_change ? new Date(profile.last_username_change) : null;
+  const daysSinceChange = lastChange ? Math.floor((new Date() - lastChange) / (1000 * 60 * 60 * 24)) : null;
+  const canChangeUsername = !lastChange || daysSinceChange >= 15;
+  const daysUntilCanChange = canChangeUsername ? 0 : 15 - daysSinceChange;
+
   const handleSaveProfile = async () => {
     if (!user) return;
     setIsSaving(true);
     try {
+      // Import here if dynamic, but usually better at top level. Let's assume standard import at top.
+      // Wait, let's just use it and rely on top-level import.
+      const imageCompression = (await import('browser-image-compression')).default;
+
       let finalCoverUrl = formData.cover_url;
       let finalAvatarUrl = profile?.avatar_url || '';
 
+      const compressOptions = {
+        maxSizeMB: 0.5,
+        maxWidthOrHeight: 1280,
+        initialQuality: 0.7,
+        useWebWorker: true,
+      };
+
       if (coverFile) {
-        const fileExt = coverFile.name.split('.').pop();
+        let processedCover = coverFile;
+        if (coverFile.type.startsWith('image/')) {
+          processedCover = await imageCompression(coverFile, { ...compressOptions, maxWidthOrHeight: 1920 });
+        }
+        const fileExt = processedCover.name.split('.').pop();
         const uniqueFilename = `users/${user.id}/covers/${Date.now()}.${fileExt}`;
         const presignedRes = await fetch(
-          `/api/v1/storage/presigned-url?filename=${encodeURIComponent(uniqueFilename)}&content_type=${encodeURIComponent(coverFile.type)}`,
+          `/api/v1/storage/presigned-url?filename=${encodeURIComponent(uniqueFilename)}&content_type=${encodeURIComponent(processedCover.type)}`,
           { headers: { 'Authorization': `Bearer ${session?.access_token || ''}` } }
         );
         if (!presignedRes.ok) throw new Error('Failed to retrieve secure presigned upload URL.');
         const { presigned_url, public_url } = await presignedRes.json();
         const uploadRes = await fetch(presigned_url, {
           method: 'PUT',
-          headers: { 'Content-Type': coverFile.type },
-          body: coverFile
+          headers: { 'Content-Type': processedCover.type },
+          body: processedCover
         });
         if (!uploadRes.ok) throw new Error('Failed uploading cover to storage.');
         finalCoverUrl = public_url;
       }
 
       if (avatarFile) {
-        const fileExt = avatarFile.name.split('.').pop();
+        let processedAvatar = avatarFile;
+        if (avatarFile.type.startsWith('image/')) {
+          processedAvatar = await imageCompression(avatarFile, { ...compressOptions, maxWidthOrHeight: 800 });
+        }
+        const fileExt = processedAvatar.name.split('.').pop();
         const uniqueFilename = `users/${user.id}/avatars/${Date.now()}.${fileExt}`;
         const presignedRes = await fetch(
-          `/api/v1/storage/presigned-url?filename=${encodeURIComponent(uniqueFilename)}&content_type=${encodeURIComponent(avatarFile.type)}`,
+          `/api/v1/storage/presigned-url?filename=${encodeURIComponent(uniqueFilename)}&content_type=${encodeURIComponent(processedAvatar.type)}`,
           { headers: { 'Authorization': `Bearer ${session?.access_token || ''}` } }
         );
         if (!presignedRes.ok) throw new Error('Failed to retrieve secure presigned upload URL.');
         const { presigned_url, public_url } = await presignedRes.json();
         const uploadRes = await fetch(presigned_url, {
           method: 'PUT',
-          headers: { 'Content-Type': avatarFile.type },
-          body: avatarFile
+          headers: { 'Content-Type': processedAvatar.type },
+          body: processedAvatar
         });
         if (!uploadRes.ok) throw new Error('Failed uploading avatar to storage.');
         finalAvatarUrl = public_url;
@@ -135,7 +160,11 @@ export default function SettingsPage() {
       // Optional: alert success or rely on local state
     } catch (error) {
       console.error('Error updating profile:', error);
-      alert('Failed to update profile: ' + error.message);
+      if (error.message?.includes('15 days')) {
+        alert('Username can only be changed once every 15 days.');
+      } else {
+        alert('Failed to update profile: ' + error.message);
+      }
     } finally {
       setIsSaving(false);
     }
@@ -290,15 +319,18 @@ export default function SettingsPage() {
             <div className="space-y-1.5">
               <label className="text-[11px] font-bold text-[#8E909E] uppercase tracking-wider pl-1 flex items-center justify-between">
                 <span>Username</span>
-                <span className="text-[9px] text-[#8E909E] lowercase font-normal border border-white/10 px-1.5 py-0.5 rounded">change limit: 2 times every 15 days</span>
+                <span className={`text-[9px] lowercase font-normal border px-1.5 py-0.5 rounded ${canChangeUsername ? 'text-[#8E909E] border-white/10' : 'text-red-400 border-red-500/20 bg-red-500/5'}`}>
+                  {canChangeUsername ? 'change limit: once every 15 days' : `Available in ${daysUntilCanChange} days`}
+                </span>
               </label>
               <div className="relative">
                 <span className="absolute left-4 top-1/2 -translate-y-1/2 text-white/30">@</span>
                 <input 
                   type="text" 
-                  disabled
+                  disabled={!isEditing || !canChangeUsername}
                   value={formData.username} 
-                  className="w-full bg-[#0C0E14] border border-white/5 rounded-xl pl-8 pr-4 py-2.5 text-sm text-white/50 outline-none cursor-not-allowed"
+                  onChange={(e) => setFormData({...formData, username: e.target.value})}
+                  className={`w-full bg-[#0C0E14] border border-white/5 rounded-xl pl-8 pr-4 py-2.5 text-sm text-white/90 outline-none focus:border-white/20 disabled:text-white/50 ${(!isEditing || !canChangeUsername) ? 'cursor-not-allowed' : ''}`}
                 />
               </div>
             </div>
