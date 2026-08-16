@@ -2,11 +2,25 @@ import { NextResponse } from 'next/server';
 import webpush from 'web-push';
 import { createClient } from '@supabase/supabase-js';
 
-// Initialize Supabase Client with Service Role to bypass RLS for background jobs
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY // Should ideally be SERVICE_ROLE_KEY, but using ANON_KEY for this setup since it's an example. RLS policies might block it if they aren't set correctly for anon. Wait, push_subscriptions RLS says "auth.uid() = user_id". We need a service role key.
-);
+let supabase = null;
+
+function getSupabaseClient() {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+  if (!supabaseUrl || !supabaseAnonKey) {
+    return null;
+  }
+
+  if (!supabase) {
+    supabase = createClient(
+      supabaseUrl,
+      supabaseAnonKey
+    );
+  }
+
+  return supabase;
+}
 
 // We'll use a hack to temporarily disable RLS if Service Role key is missing, or we can just assume the RLS allows read for now. Let's fix RLS for push_subscriptions to allow anon to select for webhook, but that's insecure.
 // Instead we'll use ANON key and if RLS blocks, we might need a service role key.
@@ -26,13 +40,18 @@ export async function POST(request) {
   try {
     const payload = await request.json();
     const { notification_id, user_id, actor_id, type, post_id } = payload;
+    const supabaseClient = getSupabaseClient();
+
+    if (!supabaseClient) {
+      return NextResponse.json({ error: 'Supabase is not configured on this server.' }, { status: 500 });
+    }
 
     if (!type || (!user_id && type !== 'new_post')) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
     
     // Fetch actor profile
-    const { data: actor } = await supabase
+    const { data: actor } = await supabaseClient
       .from('profiles')
       .select('display_name')
       .eq('id', actor_id)
@@ -41,7 +60,7 @@ export async function POST(request) {
     // Fetch post title
     let postTitle = 'a discussion';
     if (post_id) {
-      const { data: post } = await supabase
+      const { data: post } = await supabaseClient
         .from('posts')
         .select('title')
         .eq('id', post_id)
@@ -66,14 +85,14 @@ export async function POST(request) {
     let subscriptions = [];
     if (type === 'new_post') {
       // Broadcast to everyone EXCEPT the author
-      const { data, error } = await supabase
+      const { data, error } = await supabaseClient
         .from('push_subscriptions')
         .select('*')
         .neq('user_id', actor_id);
       if (!error && data) subscriptions = data;
     } else {
       // Send to specific user
-      const { data, error } = await supabase
+      const { data, error } = await supabaseClient
         .from('push_subscriptions')
         .select('*')
         .eq('user_id', user_id);
@@ -105,7 +124,7 @@ export async function POST(request) {
       } catch (err) {
         console.error('Error sending push to endpoint:', sub.endpoint, err);
         if (err.statusCode === 410 || err.statusCode === 404) {
-          await supabase.from('push_subscriptions').delete().eq('id', sub.id);
+          await supabaseClient.from('push_subscriptions').delete().eq('id', sub.id);
         }
       }
     });

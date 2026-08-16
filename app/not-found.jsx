@@ -17,7 +17,7 @@ export default function NotFound() {
         <div className="relative w-32 h-32 flex items-center justify-center mb-4">
           <div className="absolute inset-0 bg-accent-yellow/10 rounded-full animate-ping opacity-75 duration-[3000ms]"></div>
           <div className="relative w-24 h-24 bg-surface-dark border border-white/10 rounded-full flex items-center justify-center shadow-[0_0_40px_rgba(255,186,9,0.15)]">
-            <Compass size={40} className="text-accent-yellow animate-[spin_4s_linear_infinite]" />
+          
           </div>
         </div>
 

@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from 'react';
-import { AlertCircle, ShieldAlert, FileQuestion, ChevronDown, ChevronUp, LifeBuoy } from 'lucide-react';
+import { AlertCircle, ShieldAlert, FileQuestion , CircleQuestionMark, ChevronDown, ChevronUp, LifeBuoy, MessageSquare, X } from 'lucide-react';
 
 const SUPPORT_CARDS = [
   {
@@ -12,9 +12,9 @@ const SUPPORT_CARDS = [
     bg: 'bg-red-400/10'
   },
   {
-    title: 'Verification Issue',
-    description: 'Troubles with academic credentials.',
-    icon: ShieldAlert,
+    title: 'Add your feedback',
+    description: 'Help us improve with your suggestions.',
+    icon: MessageSquare,
     color: 'text-[#FFC300]',
     bg: 'bg-[#FFC300]/10'
   },
@@ -28,13 +28,14 @@ const SUPPORT_CARDS = [
 ];
 
 const FAQS = [
+ 
   {
-    question: 'How do I verify my email?',
-    answer: 'Go to your Profile settings, click on "Verify Account", and enter your .edu email address. A verification link will be sent to your inbox.'
+    question: 'What are Honor Points and how do I earn them?',
+    answer: 'Honor Points reward valuable participation. You earn them by completing profile verification, starting discussions, writing helpful answers, earning upvotes or Best Answer selections, maintaining contribution streaks, and reporting harmful content.'
   },
   {
-    question: 'How do I earn Honor Points?',
-    answer: 'You can earn Honor Points by participating actively in discussions, providing helpful answers that get upvoted, and maintaining a positive reputation in the community.'
+    question: 'Can I redeem my Honor Points?',
+    answer: 'Redemption is coming soon! Keep contributing and stacking your points to unlock exclusive perks, badges, and upcoming community rewards.'
   },
   {
     question: 'How can I report inappropriate content?',
@@ -44,13 +45,14 @@ const FAQS = [
 
 export default function SupportPage() {
   const [openFaqIndex, setOpenFaqIndex] = useState(null);
+  const [openCardIndex, setOpenCardIndex] = useState(null);
 
   return (
     <div className="max-w-4xl w-full mx-auto pb-20 md:pb-8 pt-4">
       {/* Header */}
       <div className="mb-10 px-2 flex items-center gap-4">
         <div className="p-3 bg-[#0033A0]/20 rounded-2xl">
-          <LifeBuoy size={28} className="text-[#8FAAFF]" />
+          <CircleQuestionMark size={28} className="text-[#8FAAFF]" />
         </div>
         <div>
           <h1 className="text-3xl font-bold text-white tracking-tight">Support</h1>
@@ -61,12 +63,18 @@ export default function SupportPage() {
       {/* Support Categories */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-12">
         {SUPPORT_CARDS.map((card, idx) => (
-          <div key={idx} className="bg-[#1A1B22] border border-white/5 hover:border-white/20 transition-all rounded-2xl p-6 cursor-pointer group hover:-translate-y-1 shadow-lg">
+          <div 
+            key={idx} 
+            onClick={() => setOpenCardIndex(idx)}
+            className="bg-[#1A1B22] border border-white/5 hover:border-white/20 transition-all rounded-2xl p-6 cursor-pointer group hover:-translate-y-1 shadow-lg flex flex-col h-full"
+          >
             <div className={`w-12 h-12 rounded-xl flex items-center justify-center mb-5 ${card.bg} group-hover:scale-110 transition-transform`}>
               <card.icon size={24} className={card.color} />
             </div>
-            <h3 className="text-lg font-bold text-[#E2E1EB] mb-2">{card.title}</h3>
-            <p className="text-sm text-[#C4C5D5]/80 leading-relaxed">{card.description}</p>
+            <h3 className="text-lg font-bold text-[#E2E1EB] mb-2">
+              {card.title}
+            </h3>
+            <p className="text-sm text-[#C4C5D5]/80 leading-relaxed mb-2">{card.description}</p>
           </div>
         ))}
       </div>
@@ -112,6 +120,50 @@ export default function SupportPage() {
         </div>
       </div>
       
+      {/* Modal Overlay */}
+      {openCardIndex !== null && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={() => setOpenCardIndex(null)}>
+          <div 
+            className="bg-[#1A1B22] border border-white/10 rounded-3xl p-6 md:p-8 w-full max-w-lg shadow-2xl relative animate-in fade-in zoom-in-95 duration-200"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button 
+              onClick={() => setOpenCardIndex(null)}
+              className="absolute top-6 right-6 text-white/50 hover:text-white transition-colors p-1"
+            >
+              <X size={24} />
+            </button>
+            
+            <div className="flex items-center gap-4 mb-6">
+              <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${SUPPORT_CARDS[openCardIndex].bg}`}>
+                {React.createElement(SUPPORT_CARDS[openCardIndex].icon, { size: 24, className: SUPPORT_CARDS[openCardIndex].color })}
+              </div>
+              <div>
+                <h3 className="text-xl font-bold text-white">{SUPPORT_CARDS[openCardIndex].title}</h3>
+                <p className="text-sm text-white/50">{SUPPORT_CARDS[openCardIndex].description}</p>
+              </div>
+            </div>
+            
+            <div className="flex flex-col gap-4">
+              <div className="flex flex-col gap-2">
+                <label className="text-sm font-medium text-white/80">
+                  {SUPPORT_CARDS[openCardIndex].title === 'Add your feedback' ? 'Your Feedback' : 'Description'}
+                </label>
+                <textarea 
+                  className="w-full bg-[#0C0E14] border border-white/10 rounded-xl p-4 text-sm text-white placeholder-white/30 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 min-h-[120px] resize-none transition-all"
+                  placeholder={`Write your ${SUPPORT_CARDS[openCardIndex].title.toLowerCase()} here...`}
+                />
+              </div>
+              <button 
+                onClick={() => setOpenCardIndex(null)}
+                className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-xl transition-colors w-full mt-2"
+              >
+                Submit
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

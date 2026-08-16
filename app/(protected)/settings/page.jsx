@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Image from 'next/image';
 import { User, Bell, Shield, Award, AlertTriangle, Edit2, CheckCircle2, ChevronRight, LogOut, Trash2, Link as LinkIcon, Save } from 'lucide-react';
 import { useAuth } from '../../../context/AuthContext';
@@ -8,23 +8,37 @@ import { supabase } from '../../../lib/supabaseClient';
 import { usePushNotifications } from '../../../hooks/usePushNotifications';
 
 export default function SettingsPage() {
-  const { profile, user } = useAuth();
+  const { profile, user, session, refreshProfile } = useAuth();
   const { isSupported, isSubscribed, isLoading, subscribe, unsubscribe } = usePushNotifications();
   
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState({
+    display_name: '',
+    username: '',
     bio: '',
     instagram_url: '',
-    linkedin_url: ''
+    linkedin_url: '',
+    cover_url: ''
   });
   const [isSaving, setIsSaving] = useState(false);
+  
+  const coverInputRef = useRef(null);
+  const [coverFile, setCoverFile] = useState(null);
+  const [localCoverUrl, setLocalCoverUrl] = useState('');
+  
+  const avatarInputRef = useRef(null);
+  const [avatarFile, setAvatarFile] = useState(null);
+  const [localAvatarUrl, setLocalAvatarUrl] = useState('');
 
   useEffect(() => {
     if (profile) {
       setFormData({
+        display_name: profile.display_name || '',
+        username: profile.username || '',
         bio: profile.bio || 'Exploring the intersections of distributed systems and artificial intelligence.',
         instagram_url: profile.instagram_url || '',
-        linkedin_url: profile.linkedin_url || ''
+        linkedin_url: profile.linkedin_url || '',
+        cover_url: profile.cover_url || ''
       });
     }
   }, [profile]);
@@ -44,21 +58,69 @@ export default function SettingsPage() {
     if (!user) return;
     setIsSaving(true);
     try {
+      let finalCoverUrl = formData.cover_url;
+      let finalAvatarUrl = profile?.avatar_url || '';
+
+      if (coverFile) {
+        const fileExt = coverFile.name.split('.').pop();
+        const uniqueFilename = `users/${user.id}/covers/${Date.now()}.${fileExt}`;
+        const presignedRes = await fetch(
+          `/api/v1/storage/presigned-url?filename=${encodeURIComponent(uniqueFilename)}&content_type=${encodeURIComponent(coverFile.type)}`,
+          { headers: { 'Authorization': `Bearer ${session?.access_token || ''}` } }
+        );
+        if (!presignedRes.ok) throw new Error('Failed to retrieve secure presigned upload URL.');
+        const { presigned_url, public_url } = await presignedRes.json();
+        const uploadRes = await fetch(presigned_url, {
+          method: 'PUT',
+          headers: { 'Content-Type': coverFile.type },
+          body: coverFile
+        });
+        if (!uploadRes.ok) throw new Error('Failed uploading cover to storage.');
+        finalCoverUrl = public_url;
+      }
+
+      if (avatarFile) {
+        const fileExt = avatarFile.name.split('.').pop();
+        const uniqueFilename = `users/${user.id}/avatars/${Date.now()}.${fileExt}`;
+        const presignedRes = await fetch(
+          `/api/v1/storage/presigned-url?filename=${encodeURIComponent(uniqueFilename)}&content_type=${encodeURIComponent(avatarFile.type)}`,
+          { headers: { 'Authorization': `Bearer ${session?.access_token || ''}` } }
+        );
+        if (!presignedRes.ok) throw new Error('Failed to retrieve secure presigned upload URL.');
+        const { presigned_url, public_url } = await presignedRes.json();
+        const uploadRes = await fetch(presigned_url, {
+          method: 'PUT',
+          headers: { 'Content-Type': avatarFile.type },
+          body: avatarFile
+        });
+        if (!uploadRes.ok) throw new Error('Failed uploading avatar to storage.');
+        finalAvatarUrl = public_url;
+      }
+
+      const updateData = {
+        display_name: formData.display_name,
+        username: formData.username,
+        bio: formData.bio,
+        instagram_url: formData.instagram_url,
+        linkedin_url: formData.linkedin_url,
+        cover_url: finalCoverUrl
+      };
+      if (avatarFile) updateData.avatar_url = finalAvatarUrl;
+
       const { error } = await supabase
         .from('profiles')
-        .update({
-          bio: formData.bio,
-          instagram_url: formData.instagram_url,
-          linkedin_url: formData.linkedin_url
-        })
+        .update(updateData)
         .eq('id', user.id);
       
       if (error) throw error;
+      if (refreshProfile) await refreshProfile();
       setIsEditing(false);
+      setCoverFile(null);
+      setAvatarFile(null);
       // Optional: alert success or rely on local state
     } catch (error) {
       console.error('Error updating profile:', error);
-      alert('Failed to update profile');
+      alert('Failed to update profile: ' + error.message);
     } finally {
       setIsSaving(false);
     }
@@ -134,22 +196,61 @@ export default function SettingsPage() {
         <div className="space-y-6">
           {/* Cover & Avatar */}
           <div className="flex flex-col gap-4">
-            <div className="w-full h-32 bg-[#2A2B32] rounded-xl overflow-hidden relative group cursor-pointer border border-white/5">
-              <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                <span className="text-xs font-medium text-white flex items-center gap-1"><Edit2 size={12}/> Change Cover Photo</span>
-              </div>
+            <div 
+              className={`w-full h-32 bg-[#2A2B32] rounded-xl overflow-hidden relative group border border-white/5 ${isEditing ? 'cursor-pointer' : ''}`}
+              onClick={() => isEditing && coverInputRef.current?.click()}
+            >
+              {(localCoverUrl || profile?.cover_url) && (
+                <Image src={localCoverUrl || profile.cover_url} alt="Cover" fill className="object-cover" />
+              )}
+              {isEditing && (
+                <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                  <span className="text-xs font-medium text-white flex items-center gap-1"><Edit2 size={12}/> Click to Upload Cover</span>
+                </div>
+              )}
+              <input 
+                type="file" 
+                ref={coverInputRef} 
+                accept="image/*" 
+                className="hidden" 
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) {
+                    setCoverFile(file);
+                    setLocalCoverUrl(URL.createObjectURL(file));
+                  }
+                }} 
+              />
             </div>
             
             <div className="flex items-end gap-4 -mt-10 px-4">
-              <div className="w-20 h-20 rounded-full border-4 border-[#1A1B22] bg-[#2A2B32] overflow-hidden relative group cursor-pointer z-10 shrink-0">
-                {profile?.avatar_url ? (
-                  <Image src={profile.avatar_url} alt="Avatar" fill className="object-cover" />
+              <div 
+                className={`w-20 h-20 rounded-full border-4 border-[#1A1B22] bg-[#2A2B32] overflow-hidden relative group z-10 shrink-0 ${isEditing ? 'cursor-pointer' : ''}`}
+                onClick={() => isEditing && avatarInputRef.current?.click()}
+              >
+                {(localAvatarUrl || profile?.avatar_url) ? (
+                  <Image src={localAvatarUrl || profile.avatar_url} alt="Avatar" fill className="object-cover" />
                 ) : (
                   <div className="w-full h-full bg-gradient-to-tr from-[#8A2387] to-[#F27121] flex items-center justify-center text-2xl">👤</div>
                 )}
-                <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                  <Edit2 size={14} className="text-white" />
-                </div>
+                {isEditing && (
+                  <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                    <Edit2 size={14} className="text-white" />
+                  </div>
+                )}
+                <input 
+                  type="file" 
+                  ref={avatarInputRef} 
+                  accept="image/*" 
+                  className="hidden" 
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      setAvatarFile(file);
+                      setLocalAvatarUrl(URL.createObjectURL(file));
+                    }
+                  }} 
+                />
               </div>
               <div className="flex-1 pb-1">
                 <h3 className="text-sm font-semibold text-white">Profile Picture</h3>
@@ -164,9 +265,10 @@ export default function SettingsPage() {
               <label className="text-[11px] font-bold text-[#8E909E] uppercase tracking-wider pl-1">Display Name</label>
               <input 
                 type="text" 
-                disabled
-                defaultValue={profile?.display_name || 'Loading...'} 
-                className="w-full bg-[#0C0E14] border border-white/5 rounded-xl px-4 py-2.5 text-sm text-white/50 outline-none"
+                disabled={!isEditing}
+                value={formData.display_name} 
+                onChange={(e) => setFormData({...formData, display_name: e.target.value})}
+                className="w-full bg-[#0C0E14] border border-white/5 rounded-xl px-4 py-2.5 text-sm text-white/90 outline-none focus:border-white/20 disabled:text-white/50"
               />
             </div>
             
@@ -175,12 +277,15 @@ export default function SettingsPage() {
                 <span>Username</span>
                 <span className="text-[9px] text-[#8E909E] lowercase font-normal border border-white/10 px-1.5 py-0.5 rounded">change limit: 2 times every 15 days</span>
               </label>
-              <input 
-                type="text" 
-                disabled
-                defaultValue={`@${profile?.username || 'loading'}`} 
-                className="w-full bg-[#0C0E14] border border-white/5 rounded-xl px-4 py-2.5 text-sm text-white/50 outline-none"
-              />
+              <div className="relative">
+                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-white/30">@</span>
+                <input 
+                  type="text" 
+                  disabled
+                  value={formData.username} 
+                  className="w-full bg-[#0C0E14] border border-white/5 rounded-xl pl-8 pr-4 py-2.5 text-sm text-white/50 outline-none cursor-not-allowed"
+                />
+              </div>
             </div>
 
             <div className="space-y-1.5">
@@ -225,48 +330,7 @@ export default function SettingsPage() {
         </div>
       </section>
 
-      {/* 🎓 Verification */}
-      <section className="bg-[#1A1B22] border border-white/5 rounded-2xl p-5 md:p-6 shadow-sm">
-        <div className="flex items-center gap-2 mb-6 text-white">
-          <Shield size={18} className="text-green-400" />
-          <h2 className="text-base font-semibold">Verification</h2>
-        </div>
-        
-        <div className="bg-[#0C0E14]/50 border border-white/5 rounded-xl p-4 mb-5">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="w-8 h-8 rounded-full bg-green-500/10 flex items-center justify-center">
-              <CheckCircle2 size={16} className="text-green-400" />
-            </div>
-            <div>
-              <h3 className="text-sm font-semibold text-white">Verified Student</h3>
-              <p className="text-xs text-[#8E909E]">Your academic status is verified</p>
-            </div>
-          </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <p className="text-[10px] text-[#8E909E] uppercase font-bold tracking-wider mb-1">Verified University</p>
-              <p className="text-sm text-white font-medium">Stanford University</p>
-            </div>
-            <div>
-              <p className="text-[10px] text-[#8E909E] uppercase font-bold tracking-wider mb-1">Verified Branch</p>
-              <p className="text-sm text-white font-medium">Computer Science</p>
-            </div>
-            <div>
-              <p className="text-[10px] text-[#8E909E] uppercase font-bold tracking-wider mb-1">Verified Year</p>
-              <p className="text-sm text-white font-medium">Class of 2026</p>
-            </div>
-            <div>
-              <p className="text-[10px] text-[#8E909E] uppercase font-bold tracking-wider mb-1">Registration Number</p>
-              <p className="text-sm text-white font-medium">SU-10293481</p>
-            </div>
-          </div>
-        </div>
-        
-        <button className="w-full bg-white/5 hover:bg-white/10 text-white/90 text-sm font-medium py-2.5 rounded-xl transition-colors border border-white/5">
-          Apply to Update Verified Details
-        </button>
-      </section>
 
       {/* 🔔 Notifications */}
       <section className="bg-[#1A1B22] border border-white/5 rounded-2xl p-5 md:p-6 shadow-sm">
@@ -347,14 +411,7 @@ export default function SettingsPage() {
       {/* Account Actions & Danger Zone */}
       <section className="bg-red-500/5 border border-red-500/10 rounded-2xl p-5 md:p-6 shadow-sm">
         <div className="space-y-3">
-          <a 
-            href="/api/user/export"
-            download
-            className="w-full bg-[#0C0E14]/80 border border-white/10 hover:bg-white/5 rounded-xl px-4 py-3 text-sm text-left text-white transition-colors flex items-center gap-3"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-            <span className="font-medium">Download My Data (GDPR)</span>
-          </a>
+
           
           <button 
             onClick={handleLogout}

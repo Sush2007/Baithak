@@ -12,18 +12,18 @@ import Button from '../components/ui/Button';
 import ProtectedRoute from '../components/ProtectedRoute';
 import { useAuth } from '../context/AuthContext';
 
-if (typeof window !== 'undefined') {
-  gsap.registerPlugin(ScrollTrigger, MotionPathPlugin);
-}
-
 const FAQS = [
   {
     q: "Is Baithak only for my college?",
-    a: "Currently, Baithak is an exclusive platform. You must register with a verified college email address to access your campus's private circle."
+    a: "Currently, Baithak is only for VSSUT students, later we will be having it for other colleges too"
   },
   {
-    q: "How do Honour Points work?",
-    a: "Every time you answer a question, share helpful notes, or get upvoted by peers, you earn Honour Points. Accumulating these points unlocks special profile badges, ranks, and real-world perks."
+    q: "What are Honor Points and how do I earn them?",
+    a: "Honor Points reward meaningful participation. You earn them by completing verification, starting discussions, writing helpful answers, earning upvotes or Best Answer selections, keeping daily streaks, and reporting harmful content."
+  },
+  {
+    q: "Can I redeem my Honor Points?",
+    a: "Redemption is coming soon! Keep contributing and stacking your points to unlock exclusive perks, badges, and upcoming community rewards."
   },
   {
     q: "Can I remain anonymous?",
@@ -31,7 +31,7 @@ const FAQS = [
   },
   {
     q: "Who can answer my questions?",
-    a: "Only verified students from your college (seniors, peers, and alumni) can answer. This ensures that every answer is highly contextual to your specific professors and campus culture."
+    a: "Only the students from your college (seniors, peers, and alumni) can answer. This ensures that every answer is highly contextual to your specific professors and campus culture."
   },
   {
     q: "Is Baithak completely free to use?",
@@ -54,6 +54,13 @@ const LandingPageClient = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [activeSection, setActiveSection] = useState('');
   const [openFaq, setOpenFaq] = useState(null);
+
+  // Initialize GSAP plugins once on client mount
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      gsap.registerPlugin(ScrollTrigger, MotionPathPlugin);
+    }
+  }, []);
 
   useEffect(() => {
     if (mobileMenuOpen) {
@@ -98,7 +105,7 @@ const LandingPageClient = () => {
     
     // Ensure GSAP recalculates after initial render and image/video loads
     const timer = setTimeout(() => {
-      ScrollTrigger.refresh();
+      ScrollTrigger?.refresh?.();
     }, 500);
 
     return () => {
@@ -124,12 +131,13 @@ const LandingPageClient = () => {
   // Fix GSAP Scroll Clipping (FOUT Bug)
   useEffect(() => {
     document.fonts.ready.then(() => {
-      ScrollTrigger.refresh();
+      ScrollTrigger?.refresh?.();
     });
   }, []);
 
   // Landing Page Entry Animations
   useEffect(() => {
+    gsap.registerPlugin(ScrollTrigger, MotionPathPlugin);
     const ctx = gsap.context(() => {
       // Reveal animation for all elements marked with class 'reveal-landing'
       const reveals = document.querySelectorAll('.reveal-landing');
@@ -253,9 +261,6 @@ const LandingPageClient = () => {
             </Link>
           </div>
           <div className="flex gap-3">
-            <Button onClick={() => document.getElementById('join-section')?.scrollIntoView({ behavior: 'smooth' })} variant="primary" className="text-xs py-2 px-5 font-bold cursor-pointer">
-              Join Baithak
-            </Button>
           </div>
         </nav>
 
@@ -408,7 +413,7 @@ const LandingPageClient = () => {
                   onClick={signInWithGoogle}
                   className="w-full bg-white hover:bg-neutral-100 text-black font-semibold py-3.5 px-6 rounded-full flex items-center justify-center gap-3 transition-all duration-300 shadow-sm cursor-pointer text-sm animate-fade-in"
                 >
-                  <Image src="/google-logo.png" alt="Google" width={20} height={20} className='h-5 w-auto '/>
+                  <Image src="/google-logo.png" alt="Google" width={20} height={20} className="h-5 w-auto" />
                   Sign up with Google
                 </button>
 
@@ -422,7 +427,6 @@ const LandingPageClient = () => {
                   <Link href="/privacy" className="text-on-surface hover:text-accent-yellow underline transition-colors cursor-pointer">
                     Privacy Policy
                   </Link>
-                  , including. Requires verified college id.
                 </p>
 
                 {/* Already have an account? */}
@@ -434,9 +438,9 @@ const LandingPageClient = () => {
                   {/* Sign In Button */}
                   <button
                     onClick={signInWithGoogle}
-                    className="w-full bg-white font-semibold py-3.5 px-6 rounded-full transition-all duration-300 cursor-pointer text-black font-sans flex items-center justify-center"
+                    className="w-full bg-white hover:bg-neutral-100 text-black font-semibold py-3.5 px-6 rounded-full flex items-center justify-center gap-3 transition-all duration-300 shadow-sm cursor-pointer text-sm"
                   >
-                    <Image src="/google-logo.png" alt="Google" width={20} height={20} className="w-auto h-5 inline mr-[5px]" />
+                    <Image src="/google-logo.png" alt="Google" width={20} height={20} className="h-5 w-auto" />
                     Sign in with Google
                   </button>
                 </div>
@@ -691,11 +695,8 @@ const LandingPageClient = () => {
               <Link href="/about" className="hover:text-accent-yellow transition-colors cursor-pointer font-bold bg-transparent border-0">About Us</Link>
               <Link href="/privacy" className="hover:text-accent-yellow transition-colors cursor-pointer font-bold bg-transparent border-0">Privacy Policy</Link>
               <Link href="/terms" className="hover:text-accent-yellow transition-colors cursor-pointer font-bold bg-transparent border-0">Terms of Service</Link>
-              
-              <a href="https://www.instagram.com/baithak.ig/" className="hover:text-accent-yellow transition-colors"> Instagram</a>
-              <a href="#" className="hover:text-accent-yellow transition-colors"> Twitter / X</a>
-              <a href="#" className="hover:text-accent-yellow transition-colors"> Linkedin</a>
-              <a href="https://mail.google.com/mail/?view=cm&fs=1&to=baithak.support@gmail.com" target="_blank" className="hover:text-accent-yellow transition-colors">Support</a>
+              <a href="https://www.instagram.com/baithak.ig/" target="_blank" rel="noopener noreferrer" className="hover:text-accent-yellow transition-colors">Instagram</a>
+              <a href="https://mail.google.com/mail/?view=cm&fs=1&to=baithak.support@gmail.com" target="_blank" rel="noopener noreferrer" className="hover:text-accent-yellow transition-colors">Support</a>
             </div>
             <p className="text-[10px] text-on-surface-variant/40">© 2026 Baithak. Designed for midnight academic communities.</p>
           </div>

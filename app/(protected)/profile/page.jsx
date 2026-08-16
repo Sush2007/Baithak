@@ -41,7 +41,8 @@ export default function ProfilePage() {
         const { count } = await supabase
           .from('connections')
           .select('*', { count: 'exact', head: true })
-          .eq('following_id', profile.id);
+          .eq('status', 'accepted')
+          .or(`follower_id.eq.${profile.id},following_id.eq.${profile.id}`);
           
         setConnectionCount(count || 0);
       } catch (err) {
@@ -59,7 +60,7 @@ export default function ProfilePage() {
       {/* Cover Photo */}
       <div className="w-full h-48 sm:h-64 rounded-2xl sm:rounded-[32px] overflow-hidden relative mb-16 px-2 sm:px-0">
         <Image 
-          src="https://images.unsplash.com/photo-1517502884422-41eaead166d4?auto=format&fit=crop&q=80&w=1200" 
+          src={profile?.cover_url || "https://images.unsplash.com/photo-1517502884422-41eaead166d4?auto=format&fit=crop&q=80&w=1200"} 
           alt="Cover" 
           fill 
           className="object-cover opacity-80" 
@@ -87,13 +88,14 @@ export default function ProfilePage() {
                 {profile?.display_name || 'Loading...'}
               </h1>
               <p className="text-sm text-blue-400 font-medium">@{profile?.username || 'loading'}</p>
-              <p className="text-sm text-white/50 mt-1">Computer Science & Engineering '25</p>
             </div>
           </div>
 
-          <Link href="/settings" className="bg-white/10 hover:bg-white/20 text-white border border-white/10 text-sm font-semibold px-6 py-2.5 rounded-full transition-colors w-full sm:w-auto mt-2 sm:mt-0 text-center">
-            Edit Profile
-          </Link>
+          <div className="flex flex-col items-end gap-3 w-full sm:w-auto mt-2 sm:mt-0">
+            <Link href="/settings" className="bg-white/10 hover:bg-white/20 text-white border border-white/10 text-sm font-semibold px-6 py-2.5 rounded-full transition-colors w-full sm:w-auto text-center">
+              Edit Profile
+            </Link>
+          </div>
         </div>
 
         {/* Bio & Details */}
@@ -102,22 +104,34 @@ export default function ProfilePage() {
             {profile?.bio || 'No bio provided yet.'}
           </p>
           
-          <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-xs text-white/50">
-            <span className="flex items-center gap-1.5"><MapPin size={14} /> VSSUT Burla, Odisha</span>
-            {profile?.instagram_url && (
-              <span className="flex items-center gap-1.5">
-                <LinkIcon size={14} /> 
-                <a href={profile.instagram_url} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline">Instagram</a>
-              </span>
-            )}
-            {profile?.linkedin_url && (
-              <span className="flex items-center gap-1.5">
-                <LinkIcon size={14} /> 
-                <a href={profile.linkedin_url} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline">LinkedIn</a>
-              </span>
-            )}
-            <span className="flex items-center gap-1.5 font-medium text-[#8FAAFF]">{connectionCount} Connections</span>
-            <span className="flex items-center gap-1.5"><Calendar size={14} /> Joined {profile?.created_at ? new Date(profile.created_at).toLocaleDateString('en-US', { month: 'long', year: 'numeric'}) : 'recently'}</span>
+          <div className="flex flex-wrap items-center justify-between gap-y-4">
+            <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-xs text-white/50">
+              <span className="flex items-center gap-1.5"><MapPin size={14} /> VSSUT Burla, Odisha</span>
+              <Link href="/connections" className="flex items-center gap-1.5 font-medium text-[#8FAAFF] hover:underline">
+                {connectionCount} Connections
+              </Link>
+            </div>
+            
+            <div className="flex items-center gap-3">
+              {profile?.instagram_url && (
+                <a href={profile.instagram_url} target="_blank" rel="noopener noreferrer" className="text-white/50 hover:text-white transition-colors" title="Instagram">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect>
+                    <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path>
+                    <line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line>
+                  </svg>
+                </a>
+              )}
+              {profile?.linkedin_url && (
+                <a href={profile.linkedin_url} target="_blank" rel="noopener noreferrer" className="text-white/50 hover:text-white transition-colors" title="LinkedIn">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z"></path>
+                    <rect x="2" y="9" width="4" height="12"></rect>
+                    <circle cx="4" cy="4" r="2"></circle>
+                  </svg>
+                </a>
+              )}
+            </div>
           </div>
         </div>
 
@@ -133,7 +147,7 @@ export default function ProfilePage() {
           </div>
           <div className="flex flex-col">
             <span className="text-xl font-bold text-blue-400">2.4k</span>
-            <span className="text-xs text-white/50 uppercase tracking-wider font-medium">Impact Score</span>
+            <span className="text-xs text-white/50 uppercase tracking-wider font-medium">Honour Points</span>
           </div>
         </div>
 

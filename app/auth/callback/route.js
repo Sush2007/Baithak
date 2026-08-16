@@ -10,26 +10,23 @@ export async function GET(request) {
   let authError = null;
 
   if (code) {
-    let response = NextResponse.redirect(`${origin}${next}`);
-    const forwardedHost = request.headers.get('x-forwarded-host');
-    const isLocalEnv = process.env.NODE_ENV === 'development';
-    
-    if (!isLocalEnv && forwardedHost) {
-      response = NextResponse.redirect(`https://${forwardedHost}${next}`);
-    }
-
+    const cookieStore = await cookies();
     const supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
       {
         cookies: {
-          getAll() {
-            return request.cookies.getAll();
+                    getAll() {
+            return cookieStore.getAll();
           },
           setAll(cookiesToSet) {
-            cookiesToSet.forEach(({ name, value, options }) => {
-              response.cookies.set(name, value, options);
-            });
+            try {
+              cookiesToSet.forEach(({ name, value, options }) => {
+                cookieStore.set(name, value, options);
+              });
+            } catch (err) {
+              console.warn('[auth/callback] Cookie set error:', err);
+            }
           },
         },
       }
@@ -39,10 +36,19 @@ export async function GET(request) {
     authError = error;
     
     if (!error) {
-      return response;
+      const forwardedHost = request.headers.get('x-forwarded-host');
+      const isLocalEnv = process.env.NODE_ENV === 'development';
+      
+      if (isLocalEnv) {
+        return NextResponse.redirect(`${origin}${next}`);
+      } else if (forwardedHost) {
+        return NextResponse.redirect(`https://${forwardedHost}${next}`);
+      } else {
+        return NextResponse.redirect(`${origin}${next}`);
+      }
     }
   }
 
   // Return to homepage on error
-  return NextResponse.redirect(`${origin}/?error=auth&message=${authError?.message || 'unknown'}`);
+  return NextResponse.redirect(`${origin}/?error=auth&message=${encodeURIComponent(authError?.message || 'unknown')}`);
 }
