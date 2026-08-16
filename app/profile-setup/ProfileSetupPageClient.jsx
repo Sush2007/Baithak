@@ -9,6 +9,7 @@ import imageCompression from 'browser-image-compression';
 import Button from '../../components/ui/Button';
 import ProtectedRoute from '../../components/ProtectedRoute';
 import Image from 'next/image';
+import Link from 'next/link';
 
 const R2_BASE_URL = (process.env.NEXT_PUBLIC_R2_URL || 'https://pub-a45e2aa5add24ba0a8813221a09a64a9.r2.dev').replace(/\/$/, '');
 
@@ -493,9 +494,9 @@ const ProfileSetupPageClient = () => {
 
         {/* Figma Footer Links */}
         <div className="w-full max-w-[600px] mx-auto mt-8 flex justify-between items-center text-[12px] text-[#8E909E] px-8 z-10">
-          <button className="hover:text-white transition-colors">Privacy Policy</button>
-          <button className="hover:text-white transition-colors">Terms of Service</button>
-          <button className="hover:text-white transition-colors">Support Center</button>
+          <Link href="/privacy" className="hover:text-white transition-colors cursor-pointer">Privacy Policy</Link>
+          <Link href="/terms" className="hover:text-white transition-colors cursor-pointer">Terms of Service</Link>
+          <a href="https://mail.google.com/mail/?view=cm&fs=1&to=baithak.support@gmail.com" target="_blank" rel="noopener noreferrer" className="hover:text-white transition-colors cursor-pointer">Support Center</a>
         </div>
 
       </div>

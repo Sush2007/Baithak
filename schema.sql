@@ -233,8 +233,12 @@ CREATE TRIGGER on_new_like
 -- ADD SOCIAL URLS TO PROFILES
 -- ==============================================
 -- This needs to be an ALTER TABLE since the table already exists.
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS bio TEXT;
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS instagram_url TEXT;
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS linkedin_url TEXT;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS cover_url TEXT;
+
+ALTER TABLE public.connections ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'pending';
 
 -- ==============================================
 -- STORAGE BUCKET: MEDIA

@@ -1,7 +1,7 @@
 import ProfileSetupPageClient from "./ProfileSetupPageClient";
 
 export const metadata = {
-  title: 'Onboarding | Complete Profile Setup',
+  title: 'Profile Setup',
   description: 'Complete your profile setup to join the Baithak student discussion circle.',
   robots: {
     index: false,

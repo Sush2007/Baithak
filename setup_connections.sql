@@ -2,6 +2,7 @@
 CREATE TABLE connections (
     follower_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
     following_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
+    status TEXT DEFAULT 'pending',
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     PRIMARY KEY (follower_id, following_id)
 );

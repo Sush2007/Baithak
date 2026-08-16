@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { ArrowLeft, Loader2, Link as LinkIcon, BadgeCheck, Users, Calendar } from 'lucide-react';
 import { supabase } from '../../../../lib/supabaseClient';
 import { useAuth } from '../../../../context/AuthContext';
@@ -17,7 +18,7 @@ export default function UserProfilePage() {
   const [loading, setLoading] = useState(true);
   
   // Connection states
-  const [isConnected, setIsConnected] = useState(false);
+  const [connectionState, setConnectionState] = useState('none'); // none, pending_sent, pending_received, connected
   const [connectionCount, setConnectionCount] = useState(0);
   const [connecting, setConnecting] = useState(false);
 
@@ -60,25 +61,31 @@ export default function UserProfilePage() {
         
       setPosts(postsData || []);
 
-      // Fetch Connection Count (Followers)
-      const { count: followersCount } = await supabase
+      // Fetch Connection Count (Accepted)
+      const { count: acceptedCount } = await supabase
         .from('connections')
         .select('*', { count: 'exact', head: true })
-        .eq('following_id', id);
+        .eq('status', 'accepted')
+        .or(`follower_id.eq.${id},following_id.eq.${id}`);
         
-      setConnectionCount(followersCount || 0);
+      setConnectionCount(acceptedCount || 0);
 
-      // Check if current user is following this profile
+      // Check connection status between current user and this profile
       if (user) {
         const { data: connData } = await supabase
           .from('connections')
-          .select('follower_id')
-          .eq('follower_id', user.id)
-          .eq('following_id', id)
-          .single();
+          .select('*')
+          .or(`and(follower_id.eq.${user.id},following_id.eq.${id}),and(follower_id.eq.${id},following_id.eq.${user.id})`)
+          .maybeSingle();
           
         if (connData) {
-          setIsConnected(true);
+          if (connData.status === 'accepted') {
+            setConnectionState('connected');
+          } else if (connData.follower_id === user.id) {
+            setConnectionState('pending_sent');
+          } else if (connData.follower_id === id) {
+            setConnectionState('pending_received');
+          }
         }
       }
       
@@ -94,20 +101,37 @@ export default function UserProfilePage() {
     
     setConnecting(true);
     try {
-      if (isConnected) {
+      if (connectionState === 'none') {
+        // Send request
+        await supabase
+          .from('connections')
+          .insert({ follower_id: user.id, following_id: id, status: 'pending' });
+        setConnectionState('pending_sent');
+      } else if (connectionState === 'pending_sent') {
+        // Cancel request
         await supabase
           .from('connections')
           .delete()
           .eq('follower_id', user.id)
           .eq('following_id', id);
-        setIsConnected(false);
-        setConnectionCount(prev => Math.max(0, prev - 1));
-      } else {
+        setConnectionState('none');
+      } else if (connectionState === 'pending_received') {
+        // Accept request
         await supabase
           .from('connections')
-          .insert({ follower_id: user.id, following_id: id });
-        setIsConnected(true);
+          .update({ status: 'accepted' })
+          .eq('follower_id', id)
+          .eq('following_id', user.id);
+        setConnectionState('connected');
         setConnectionCount(prev => prev + 1);
+      } else if (connectionState === 'connected') {
+        // Remove connection
+        await supabase
+          .from('connections')
+          .delete()
+          .or(`and(follower_id.eq.${user.id},following_id.eq.${id}),and(follower_id.eq.${id},following_id.eq.${user.id})`);
+        setConnectionState('none');
+        setConnectionCount(prev => Math.max(0, prev - 1));
       }
     } catch (err) {
       console.error('Error toggling connection:', err);
@@ -164,13 +188,19 @@ export default function UserProfilePage() {
                 onClick={handleConnect}
                 disabled={connecting}
                 className={`px-6 py-2 rounded-xl text-sm font-bold transition-all flex items-center gap-2 ${
-                  isConnected 
+                  connectionState === 'connected' 
                     ? 'bg-transparent border border-white/20 text-white hover:border-red-500 hover:text-red-500' 
+                    : connectionState === 'pending_sent'
+                    ? 'bg-transparent border border-white/20 text-white/70 hover:border-red-500 hover:text-red-500'
+                    : connectionState === 'pending_received'
+                    ? 'bg-blue-600 text-white hover:bg-blue-700'
                     : 'bg-[#8FAAFF] text-[#0C0E14] hover:bg-white'
                 }`}
               >
                 {connecting ? <Loader2 size={16} className="animate-spin" /> : null}
-                {isConnected ? 'Connected' : 'Connect'}
+                {connectionState === 'connected' ? 'Connected' : 
+                 connectionState === 'pending_sent' ? 'Pending Request' :
+                 connectionState === 'pending_received' ? 'Accept Request' : 'Connect'}
               </button>
             )}
           </div>
@@ -183,14 +213,10 @@ export default function UserProfilePage() {
             <p className="text-[#8E909E] text-sm mb-4">@{profile.username}</p>
 
             <div className="flex flex-wrap gap-4 text-sm text-[#C4C5D5] mb-4">
-              <div className="flex items-center gap-1.5">
+              <Link href={`/profile/${id}/connections`} className="flex items-center gap-1.5 hover:underline">
                 <Users size={16} className="text-[#8FAAFF]" />
-                <span className="font-semibold text-white">{connectionCount}</span> Connections
-              </div>
-              <div className="flex items-center gap-1.5">
-                <Calendar size={16} className="text-white/40" />
-                Joined {new Date(profile.created_at).toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}
-              </div>
+                <span className="font-semibold text-[#8FAAFF]">{connectionCount}</span> <span className="text-[#8FAAFF]">Connections</span>
+              </Link>
             </div>
 
             {profile.bio && (

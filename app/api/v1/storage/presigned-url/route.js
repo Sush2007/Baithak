@@ -85,8 +85,9 @@ export async function GET(request) {
   }
 
   const expectedAvatarPrefix = `users/${user.id}/avatars/`;
+  const expectedCoverPrefix = `users/${user.id}/covers/`;
   const expectedMediaPrefix = `users/${user.id}/posts/`;
-  if (!filename.startsWith(expectedAvatarPrefix) && !filename.startsWith(expectedMediaPrefix)) {
+  if (!filename.startsWith(expectedAvatarPrefix) && !filename.startsWith(expectedCoverPrefix) && !filename.startsWith(expectedMediaPrefix)) {
     return Response.json(
       { error: "Forbidden: Invalid upload directory or prefix." },
       { status: 403 }
