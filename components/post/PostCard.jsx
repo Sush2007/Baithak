@@ -279,7 +279,15 @@ const PostCard = ({ post, onReport, onQuickProfile, onDelete }) => {
   };
 
   return (
-    <article ref={postRef} className="bg-[#1A1B22] border border-white/5 rounded-2xl p-4 sm:p-5 hover:border-white/10 transition-colors cursor-pointer group relative">
+    <article 
+      ref={postRef} 
+      className={`bg-[#1A1B22] border border-white/5 rounded-2xl p-4 sm:p-5 hover:border-white/10 transition-all duration-300 cursor-pointer group relative overflow-hidden ${post.isOptimistic ? 'opacity-70 pointer-events-none' : 'opacity-100'}`}
+    >
+      {post.isOptimistic && (
+        <div className="absolute top-0 left-0 w-full h-1 bg-white/10 z-10">
+          <div className="h-full bg-gradient-to-r from-[#0033A0] to-[#FFC300] w-1/3 animate-[slide_1s_ease-in-out_infinite]" />
+        </div>
+      )}
       {/* Post Header */}
       <div className="flex justify-between items-center mb-3">
         <div className="flex items-center gap-3">

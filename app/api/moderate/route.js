@@ -1,9 +1,10 @@
 import { NextResponse } from 'next/server';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import { createClient } from '@supabase/supabase-js';
 
 export async function POST(request) {
   try {
-    const { title, content, mediaUrl, mediaType } = await request.json();
+    const { postId, title, content, mediaUrl, mediaType } = await request.json();
 
     if (!process.env.GEMINI_API_KEY) {
       console.warn("GEMINI_API_KEY is not set. Skipping AI moderation.");
@@ -11,7 +12,7 @@ export async function POST(request) {
     }
 
     const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-3.5-flash' });
     
     let parts = [
       `You are a strict automated content moderator for a university social platform.
@@ -43,22 +44,29 @@ export async function POST(request) {
         }
       } catch (imgError) {
         console.error("Failed to fetch image for moderation:", imgError);
-        // Continue moderation with just text if image fails
       }
     }
 
     const response = await model.generateContent(parts);
-
     const resultText = response.response.text();
-    // In case the model wraps the response in a markdown code block, remove it.
     const cleanText = resultText.replace(/```json\n/g, '').replace(/\n```/g, '');
     const result = JSON.parse(cleanText);
+
+    // If unsafe, delete it from the database!
+    if (result.isSafe === false && postId) {
+      const supabase = createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL,
+        process.env.SUPABASE_SERVICE_ROLE_KEY
+      );
+      
+      await supabase.from('posts').delete().eq('id', postId);
+      console.log(`[MODERATION] Deleted unsafe post ${postId}: ${result.reason}`);
+    }
 
     return NextResponse.json(result);
 
   } catch (error) {
     console.error('Moderation error:', error);
-    // Fail open - if moderation service is down, don't block users completely, but log the error
     return NextResponse.json({ isSafe: true, error: error.message }, { status: 200 });
   }
 }

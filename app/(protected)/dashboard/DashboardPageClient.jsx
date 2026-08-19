@@ -12,7 +12,7 @@ import { useRouter } from 'next/navigation';
 import { supabase } from '../../../lib/supabaseClient';
 import { useAuth } from '../../../context/AuthContext';
 
-const TABS = ['For You', 'Latest', 'Trending', 'Unanswered', 'Solved'];
+const TABS = ['For You', 'Trending', 'Unanswered', 'Solved'];
 
 
 
@@ -83,19 +83,39 @@ const DashboardPageClient = () => {
     return () => window.removeEventListener('scroll', handleScroll);
   }, [loading, loadingMore, hasMore, pageOffset, activeTab, activeTagFilter]);
 
-  // Listen for optimistic post creation
-  useEffect(() => {
-    const handleNewPost = (e) => {
-      const newPost = e.detail;
-      // Prepend the new post to the top of the feed if we're on "Latest" or "For You"
-      if (activeTab === 'For You' || activeTab === 'Latest' || activeTab === 'Unanswered') {
-        setPosts(prev => [newPost, ...prev]);
-      }
-    };
+    // Listen for optimistic post creation and resolution
+    useEffect(() => {
+      const handleNewPost = (e) => {
+        const newPost = e.detail;
+        if (activeTab === 'For You' || activeTab === 'Unanswered') {
+          // Check if it already exists to avoid duplicates
+          setPosts(prev => {
+            if (prev.some(p => p.id === newPost.id)) return prev;
+            return [newPost, ...prev];
+          });
+        }
+      };
 
-    window.addEventListener('new_post_created', handleNewPost);
-    return () => window.removeEventListener('new_post_created', handleNewPost);
-  }, [activeTab]);
+      const handlePostSuccess = (e) => {
+        const { tempId, realPost } = e.detail;
+        setPosts(prev => prev.map(p => p.id === tempId ? realPost : p));
+      };
+
+      const handlePostFailed = (e) => {
+        const { tempId } = e.detail;
+        setPosts(prev => prev.filter(p => p.id !== tempId));
+      };
+
+      window.addEventListener('new_post_created', handleNewPost);
+      window.addEventListener('post_upload_success', handlePostSuccess);
+      window.addEventListener('post_upload_failed', handlePostFailed);
+      
+      return () => {
+        window.removeEventListener('new_post_created', handleNewPost);
+        window.removeEventListener('post_upload_success', handlePostSuccess);
+        window.removeEventListener('post_upload_failed', handlePostFailed);
+      };
+    }, [activeTab]);
 
   const fetchPosts = async (offset = 0, isInitial = false) => {
     if (!hasMore && !isInitial) return;

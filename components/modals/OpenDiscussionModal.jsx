@@ -6,6 +6,7 @@ import { X, ChevronDown, Image as ImageIcon, Film, Trash2, Loader2, UploadCloud 
 import { supabase } from '../../lib/supabaseClient';
 import { useAuth } from '../../context/AuthContext';
 import imageCompression from 'browser-image-compression';
+import { toast } from 'react-hot-toast';
 
 const STANDARD_HASHTAGS = [
   'cse', 'ece', 'mech', 'civil', 'ee', 'metallurgy', 'production', 'chemical', 'architecture',
@@ -14,7 +15,7 @@ const STANDARD_HASHTAGS = [
 ];
 
 export default function OpenDiscussionModal({ isOpen, onClose }) {
-  const { user } = useAuth();
+  const { user, session } = useAuth();
   const [mounted, setMounted] = useState(false);
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
@@ -52,7 +53,7 @@ export default function OpenDiscussionModal({ isOpen, onClose }) {
           maxSizeMB: 1.5,
           maxWidthOrHeight: 1280,
           initialQuality: 0.7,
-          useWebWorker: true,
+          useWebWorker: false, // Prevents silent hanging on mobile browsers
         };
         processedFile = await imageCompression(file, options);
       } catch (error) {
@@ -117,29 +118,59 @@ export default function OpenDiscussionModal({ isOpen, onClose }) {
   const handleSubmit = async () => {
     if (!content.trim() || !user) return;
     
-    // Optimistically close modal
-    onClose();
+    // 1. Create a temporary Optimistic Post
+    const tempId = `temp-${Date.now()}`;
+    const optimisticPost = {
+      id: tempId,
+      author_id: user.id,
+      title: title.trim(),
+      content: content.trim(),
+      media_url: mediaPreview, // Use the local Blob URL instantly!
+      media_type: mediaFile ? (mediaFile.type.startsWith('video/') ? 'video' : 'image') : null,
+      profiles: {
+        username: user.user_metadata?.username || user.email?.split('@')[0] || 'Unknown',
+        display_name: user.user_metadata?.display_name || user.email?.split('@')[0] || 'Unknown',
+        avatar_url: user.user_metadata?.avatar_url
+      },
+      created_at: new Date().toISOString(),
+      likes: [{ count: 0 }],
+      comments: [{ count: 0 }],
+      isOptimistic: true // flag for the feed UI
+    };
 
-    toast.promise(
-      (async () => {
+    // 2. Optimistically close modal and inject instantly into feed
+    onClose();
+    window.dispatchEvent(new CustomEvent('new_post_created', { detail: optimisticPost }));
+
+    // 3. Background Upload Process
+    const toastId = toast.loading('Uploading media...');
+    
+    (async () => {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 25000); // 25 second strict timeout
+      
+      try {
         let finalMediaUrl = null;
         let finalMediaType = null;
 
         if (mediaFile) {
-          // 1. Get Session Token
-          const { data: sessionData } = await supabase.auth.getSession();
-          const token = sessionData?.session?.access_token;
+          // 1. Get Session Token instantly
+          const token = session?.access_token;
           if (!token) throw new Error("Not authenticated");
 
           // 2. Request Presigned URL
-          const extension = mediaFile.name.split('.').pop();
+          const extension = (mediaFile.name && mediaFile.name.includes('.')) 
+            ? mediaFile.name.split('.').pop() 
+            : (mediaFile.type.split('/')[1] || 'jpg');
           const filename = `users/${user.id}/posts/${Date.now()}.${extension}`;
+          
           const res = await fetch(`/api/v1/storage/presigned-url?filename=${encodeURIComponent(filename)}&content_type=${encodeURIComponent(mediaFile.type)}`, {
-            headers: { 'Authorization': `Bearer ${token}` }
+            headers: { 'Authorization': `Bearer ${token}` },
+            signal: controller.signal
           });
 
           if (!res.ok) {
-            const errorData = await res.json();
+            const errorData = await res.json().catch(() => ({}));
             throw new Error(errorData.error || "Failed to get upload URL");
           }
           const { presigned_url, public_url } = await res.json();
@@ -148,7 +179,8 @@ export default function OpenDiscussionModal({ isOpen, onClose }) {
           const uploadRes = await fetch(presigned_url, {
             method: 'PUT',
             headers: { 'Content-Type': mediaFile.type },
-            body: mediaFile
+            body: mediaFile,
+            signal: controller.signal
           });
 
           if (!uploadRes.ok) throw new Error("Failed to upload file to storage");
@@ -167,29 +199,11 @@ export default function OpenDiscussionModal({ isOpen, onClose }) {
           }
         }
 
-        // --- AI Moderation Step ---
-        const modRes = await fetch('/api/moderate', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            title: title.trim(),
-            content: content.trim(),
-            mediaUrl: finalMediaUrl,
-            mediaType: finalMediaType
-          })
-        });
-
-        if (modRes.ok) {
-          const modData = await modRes.json();
-          if (modData.isSafe === false) {
-            throw new Error(`Your post was blocked by Auto-Moderator: ${modData.reason || 'Inappropriate content'}`);
-          }
-        }
-
+        // 4. INSTANT DATABASE INSERTION!
         const { data: insertedPost, error } = await supabase.from('posts').insert([
           {
             author_id: user.id,
-            title: title.trim(),
+            title: title.trim() || 'Discussion', // Fallback title just in case
             content: content.trim(),
             tags,
             media_url: finalMediaUrl,
@@ -199,42 +213,54 @@ export default function OpenDiscussionModal({ isOpen, onClose }) {
 
         if (error) throw error;
         
-        // Award Honor Points
-        try {
-          await fetch('/api/honor/award', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              actionType: 'POST_CREATE',
-              points: 3,
-              referenceId: insertedPost.id
-            })
-          });
-        } catch (honorErr) {
-          console.error('Failed to award honor points', honorErr);
-        }
+        // Award Honor Points (Fire & Forget)
+        fetch('/api/honor/award', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            actionType: 'POST_CREATE',
+            points: 3,
+            referenceId: insertedPost.id
+          })
+        }).catch(honorErr => console.error('Failed to award honor points', honorErr));
+
+        // 5. BACKGROUND AI MODERATION (Fire & Forget)
+        fetch('/api/moderate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            postId: insertedPost.id,
+            title: title.trim() || 'Discussion',
+            content: content.trim(),
+            mediaUrl: finalMediaUrl,
+            mediaType: finalMediaType
+          })
+        }).catch(err => console.error("Moderation error:", err));
 
         setTitle('');
         setContent('');
         setMediaFile(null);
         setMediaPreview(null);
         
-        // Inject into feed optimistically
+        // Replace temp post with real post
         const formattedPost = {
           ...insertedPost,
           likes: [{ count: 0 }],
           comments: [{ count: 0 }]
         };
-        window.dispatchEvent(new CustomEvent('new_post_created', { detail: formattedPost }));
+        window.dispatchEvent(new CustomEvent('post_upload_success', { 
+          detail: { tempId, realPost: formattedPost } 
+        }));
 
-        return insertedPost;
-      })(),
-      {
-        loading: 'Posting discussion...',
-        success: 'Discussion posted successfully!',
-        error: (err) => `Failed to post: ${err.message}`
+        clearTimeout(timeoutId);
+        toast.success('Post created successfully!', { id: toastId });
+      } catch (err) {
+        clearTimeout(timeoutId);
+        // Rollback the optimistic post if anything fails
+        window.dispatchEvent(new CustomEvent('post_upload_failed', { detail: { tempId } }));
+        toast.error(`Failed: ${err.message}`, { id: toastId });
       }
-    );
+    })();
   };
 
   useEffect(() => {

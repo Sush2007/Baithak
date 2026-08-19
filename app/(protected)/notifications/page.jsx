@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { CheckCheck, MessageSquare, Award, AtSign, ShieldCheck, AlertCircle, Heart } from 'lucide-react';
+import { CheckCheck, MessageSquare, Award, AtSign, ShieldCheck, AlertCircle, Heart, Star } from 'lucide-react';
 import { supabase } from '../../../lib/supabaseClient';
 import { useAuth } from '../../../context/AuthContext';
 import { useRouter } from 'next/navigation';
@@ -124,6 +124,7 @@ export default function NotificationsPage() {
     switch(type) {
       case 'comment': return { icon: MessageSquare, color: 'text-blue-400', bg: 'bg-blue-400/10' };
       case 'like': return { icon: Heart, color: 'text-red-400', bg: 'bg-red-400/10' };
+      case 'post': return { icon: Star, color: 'text-purple-400', bg: 'bg-purple-400/10' };
       case 'system': return { icon: AlertCircle, color: 'text-red-500', bg: 'bg-red-500/10' };
       default: return { icon: Award, color: 'text-accent-yellow', bg: 'bg-accent-yellow/10' };
     }
@@ -132,6 +133,14 @@ export default function NotificationsPage() {
   const renderContent = (notification) => {
     const actorName = notification.actor?.display_name || 'Someone';
     switch(notification.type) {
+      case 'post': 
+        return (
+          <>
+            <p className="text-sm font-medium text-white/90">
+              {actorName} <span className="font-normal text-white/60">created a new post</span> <span className="text-blue-400">{notification.post?.title}</span>
+            </p>
+          </>
+        );
       case 'comment': 
         return (
           <>
