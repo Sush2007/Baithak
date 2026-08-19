@@ -188,6 +188,7 @@ export default function ProfilePage() {
                 post={post} 
                 onDelete={(deletedId) => setPosts(prev => prev.filter(p => p.id !== deletedId))}
                 onReport={(p) => console.log('Report', p)}
+                onQuickProfile={(id) => window.location.href = `/profile/${id}`}
               />
             ))
           )}

@@ -84,55 +84,54 @@ const PostCard = ({ post, onReport, onQuickProfile, onDelete }) => {
     if (bmData) setIsBookmarked(true);
   };
 
-  const handleLike = async () => {
-    if (!user || isSubmitting) return;
-    setIsSubmitting(true);
-    try {
-      if (isLiked) {
-        setIsLiked(false);
-        setLikesCount(prev => Math.max(0, prev - 1));
-        await supabase.from('likes').delete().eq('post_id', post.id).eq('user_id', user.id);
-      } else {
-        setIsLiked(true);
-        setLikesCount(prev => prev + 1);
-        await supabase.from('likes').insert({ post_id: post.id, user_id: user.id });
+  const handleLike = () => {
+    if (!user) return;
+    
+    // Optimistic update
+    const wasLiked = isLiked;
+    setIsLiked(!wasLiked);
+    setLikesCount(prev => wasLiked ? Math.max(0, prev - 1) : prev + 1);
+    
+    // Background sync
+    if (wasLiked) {
+      supabase.from('likes').delete().eq('post_id', post.id).eq('user_id', user.id).then(({error}) => {
+        if (error) { setIsLiked(true); setLikesCount(prev => prev + 1); }
+      });
+    } else {
+      supabase.from('likes').insert({ post_id: post.id, user_id: user.id }).then(({error}) => {
+        if (error) { setIsLiked(false); setLikesCount(prev => Math.max(0, prev - 1)); }
+      });
         
-        // Award Honor Points
-        fetch('/api/honor/award', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ actionType: 'RECEIVE_UPVOTE', points: 2, referenceId: post.id })
-        }).catch(console.error);
-      }
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setIsSubmitting(false);
+      fetch('/api/honor/award', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ actionType: 'RECEIVE_UPVOTE', points: 2, referenceId: post.id })
+      }).catch(console.error);
     }
   };
 
-  const handleBookmark = async () => {
-    if (!user || isSubmitting) return;
-    setIsSubmitting(true);
-    try {
-      if (isBookmarked) {
-        setIsBookmarked(false);
-        await supabase.from('bookmarks').delete().eq('post_id', post.id).eq('user_id', user.id);
-      } else {
-        setIsBookmarked(true);
-        await supabase.from('bookmarks').insert({ post_id: post.id, user_id: user.id });
+  const handleBookmark = () => {
+    if (!user) return;
+    
+    // Optimistic update
+    const wasBookmarked = isBookmarked;
+    setIsBookmarked(!wasBookmarked);
+    
+    // Background sync
+    if (wasBookmarked) {
+      supabase.from('bookmarks').delete().eq('post_id', post.id).eq('user_id', user.id).then(({error}) => {
+        if (error) setIsBookmarked(true);
+      });
+    } else {
+      supabase.from('bookmarks').insert({ post_id: post.id, user_id: user.id }).then(({error}) => {
+        if (error) setIsBookmarked(false);
+      });
         
-        // Award Honor Points
-        fetch('/api/honor/award', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ actionType: 'BOOKMARK', points: 1, referenceId: post.id })
-        }).catch(console.error);
-      }
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setIsSubmitting(false);
+      fetch('/api/honor/award', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ actionType: 'BOOKMARK', points: 1, referenceId: post.id })
+      }).catch(console.error);
     }
   };
 
@@ -146,26 +145,20 @@ const PostCard = ({ post, onReport, onQuickProfile, onDelete }) => {
     }
   };
 
-  const handleDeletePost = async () => {
+  const handleDeletePost = () => {
     if (!window.confirm('Are you sure you want to delete this post?')) return;
     
-    setIsSubmitting(true);
-    try {
-      const { error } = await supabase.from('posts').delete().eq('id', post.id);
-      if (error) throw error;
-      
-      if (onDelete) {
-        onDelete(post.id);
-      } else {
-        window.location.reload(); // Fallback if no onDelete provided
+    // Optimistic delete
+    if (onDelete) onDelete(post.id);
+    
+    // Background sync
+    supabase.from('posts').delete().eq('id', post.id).then(({error}) => {
+      if (error) {
+        console.error(error);
+        alert('Failed to delete post. Please refresh the page.');
       }
-    } catch (err) {
-      console.error('Error deleting post:', err);
-      alert('Failed to delete post.');
-    } finally {
-      setIsSubmitting(false);
-      setOpenDropdownId(false);
-    }
+    });
+    setOpenDropdownId(false);
   };
 
   const handleMarkAsSolved = async () => {
@@ -188,19 +181,9 @@ const PostCard = ({ post, onReport, onQuickProfile, onDelete }) => {
     if (!window.confirm('Mark this as the Best Response? This will close the discussion.')) return;
     setIsSubmitting(true);
     try {
-      // 1. Mark the comment as the best answer
-      const { error: commentError } = await supabase
-        .from('comments')
-        .update({ is_best_answer: true })
-        .eq('id', replyId);
-      if (commentError) throw commentError;
-
-      // 2. Mark the post as solved
-      const { error: postError } = await supabase
-        .from('posts')
-        .update({ is_solved: true })
-        .eq('id', post.id);
-      if (postError) throw postError;
+      // Mark the comment and post via secure RPC
+      const { error: rpcError } = await supabase.rpc('mark_best_answer', { p_comment_id: replyId });
+      if (rpcError) throw rpcError;
 
       // Award Honor Points
       await fetch('/api/honor/award', {
@@ -229,7 +212,7 @@ const PostCard = ({ post, onReport, onQuickProfile, onDelete }) => {
     const { data, error } = await supabase
       .from('comments')
       .select(`
-        id, content, created_at, is_best_answer,
+        id, content, created_at, is_best_answer, author_id,
         profiles(username, display_name, avatar_url)
       `)
       .eq('post_id', post.id)
@@ -529,7 +512,7 @@ const PostCard = ({ post, onReport, onQuickProfile, onDelete }) => {
                             <button
                               onClick={(e) => { e.stopPropagation(); handleMarkAsBestAnswer(reply.id); }}
                               disabled={isSubmitting}
-                              className="text-[11px] font-semibold text-[#00E5FF] hover:text-[#00B3CC] hover:bg-[#00E5FF]/10 px-2.5 py-1 rounded transition-colors disabled:opacity-50 flex items-center gap-1 opacity-0 group-hover:opacity-100"
+                              className="text-[11px] font-semibold text-[#00E5FF] hover:text-[#00B3CC] hover:bg-[#00E5FF]/10 px-2.5 py-1 rounded transition-colors disabled:opacity-50 flex items-center gap-1"
                             >
                               <Bookmark size={12} /> Mark as Best Response
                             </button>
@@ -543,7 +526,11 @@ const PostCard = ({ post, onReport, onQuickProfile, onDelete }) => {
                 )}
                 
                 {/* Reply Input */}
-                {user ? (
+                {post.is_solved ? (
+                  <div className="text-center mt-4 pb-2">
+                    <p className="text-sm text-white/50">This discussion has been marked as solved and is closed to new replies.</p>
+                  </div>
+                ) : user ? (
                   <div className="flex gap-3 mt-2 items-start pt-3 relative z-10">
                     <div className="relative w-8 h-8 rounded-full overflow-hidden shrink-0 border border-white/10 ring-4 ring-[#1A1B22] bg-[#0C0E14]">
                       {user.user_metadata?.avatar_url || (user.identities && user.identities[0]?.identity_data?.avatar_url) ? (

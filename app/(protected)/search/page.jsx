@@ -113,6 +113,7 @@ export default function SearchPage() {
                 key={post.id} 
                 post={post} 
                 onDelete={(deletedId) => setResults(prev => prev.filter(p => p.id !== deletedId))}
+                onQuickProfile={(id) => router.push(`/profile/${id}`)}
               />
             ))
           ) : (

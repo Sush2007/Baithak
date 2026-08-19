@@ -27,17 +27,17 @@ export default function ConnectionsPage() {
       // Fetch accepted connections (where you are either follower or following)
       const { data: acceptedData } = await supabase
         .from('connections')
-        .select('*')
+        .select(`
+          *,
+          follower:profiles!connections_follower_id_fkey(id, username, display_name, avatar_url),
+          following:profiles!connections_following_id_fkey(id, username, display_name, avatar_url)
+        `)
         .eq('status', 'accepted')
         .or(`follower_id.eq.${profile.id},following_id.eq.${profile.id}`);
         
-      const connectionIds = acceptedData?.map(c => 
-        c.follower_id === profile.id ? c.following_id : c.follower_id
+      const connectionProfiles = acceptedData?.map(c => 
+        c.follower_id === profile.id ? c.following : c.follower
       ) || [];
-      
-      const { data: connectionProfiles } = connectionIds.length > 0 
-        ? await supabase.from('profiles').select('id, display_name, username, avatar_url').in('id', connectionIds)
-        : { data: [] };
 
       // Fetch pending requests (where someone else followed you)
       const { data: pendingData } = await supabase

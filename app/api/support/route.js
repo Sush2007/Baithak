@@ -39,21 +39,21 @@ export async function POST(request) {
     let subjectPrefix = '';
     let headerColor = '#000000';
     
-    if (type === 'Bug Report') {
+    if (type === 'Report Problem') {
       subjectPrefix = '🚨 [BUG REPORT]';
       headerColor = '#DC2626'; // Red
-    } else if (type === 'Feature Request') {
+    } else if (type === 'Add your feedback') {
       subjectPrefix = '💡 [FEATURE REQUEST]';
       headerColor = '#2563EB'; // Blue
     } else {
-      subjectPrefix = '📬 [GENERAL SUPPORT]';
+      subjectPrefix = '❓ [GENERAL SUPPORT]';
       headerColor = '#16A34A'; // Green
     }
 
     // Send email via Resend
     const { data, error } = await resend.emails.send({
       from: 'Baithak Support <support@baithakpe.com>',
-      to: ['support@baithakpe.com'], // The user wants to forward to a Google Group from Cloudflare, so sending to support is correct
+      to: [process.env.REPORT_EMAIL_TO || 'baithak-support@googlegroups.com'],
       replyTo: profile?.email || user.email,
       subject: `${subjectPrefix} from ${profile?.display_name || 'User'}`,
       html: `

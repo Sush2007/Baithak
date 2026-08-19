@@ -29,6 +29,10 @@ const DashboardPageClient = () => {
   const [quickProfileUserId, setQuickProfileUserId] = useState(null);
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
+  const [pageOffset, setPageOffset] = useState(0);
+  const POSTS_PER_PAGE = 10;
 
   const virtualizer = useWindowVirtualizer({
     count: posts.length,
@@ -54,112 +58,108 @@ const DashboardPageClient = () => {
     return () => el.removeEventListener('wheel', handleWheel);
   }, []);
 
+  // When tab or tag filter changes, reset and fetch page 0
   useEffect(() => {
-    fetchPosts();
+    setPosts([]);
+    setPageOffset(0);
+    setHasMore(true);
+    fetchPosts(0, true);
   }, [activeTab, activeTagFilter]);
 
-  const fetchPosts = async () => {
-    try {
-      setLoading(true);
-      let query = supabase
-        .from('posts')
-        .select(`
-          *, 
-          profiles!posts_author_id_fkey(username, display_name, avatar_url),
-          likes(count),
-          comments(count)
-        `);
-
-      if (activeTab === 'Unanswered') {
-        query = query.or('is_solved.eq.false,is_solved.is.null').order('created_at', { ascending: false });
-      } else if (activeTab === 'Solved') {
-        query = query.eq('is_solved', true).order('created_at', { ascending: false });
-      } else if (activeTab === 'Trending') {
-        query = query.or('is_solved.eq.false,is_solved.is.null').order('created_at', { ascending: false });
-      } else {
-        query = query.or('is_solved.eq.false,is_solved.is.null').order('created_at', { ascending: false });
+  // Infinite Scroll Listener
+  useEffect(() => {
+    const handleScroll = () => {
+      if (loading || loadingMore || !hasMore) return;
+      
+      const scrollPosition = window.innerHeight + window.scrollY;
+      const threshold = document.documentElement.scrollHeight - 800; // Load 800px before bottom
+      
+      if (scrollPosition >= threshold) {
+        loadMore();
       }
+    };
 
-      const { data, error } = await query;
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, [loading, loadingMore, hasMore, pageOffset, activeTab, activeTagFilter]);
+
+  // Listen for optimistic post creation
+  useEffect(() => {
+    const handleNewPost = (e) => {
+      const newPost = e.detail;
+      // Prepend the new post to the top of the feed if we're on "Latest" or "For You"
+      if (activeTab === 'For You' || activeTab === 'Latest' || activeTab === 'Unanswered') {
+        setPosts(prev => [newPost, ...prev]);
+      }
+    };
+
+    window.addEventListener('new_post_created', handleNewPost);
+    return () => window.removeEventListener('new_post_created', handleNewPost);
+  }, [activeTab]);
+
+  const fetchPosts = async (offset = 0, isInitial = false) => {
+    if (!hasMore && !isInitial) return;
+    
+    try {
+      if (isInitial) setLoading(true);
+      else setLoadingMore(true);
+
+      const { data, error } = await supabase.rpc('get_feed_posts', {
+        p_user_id: user?.id || null,
+        p_tab: activeTab,
+        p_tag_filter: activeTagFilter,
+        p_limit: POSTS_PER_PAGE,
+        p_offset: offset
+      });
+
       if (error) throw error;
       
-      let finalData = data || [];
-
-      // Extract unique tags from fetched data before filtering
-      const tagsSet = new Set();
-      finalData.forEach(p => {
-        if (p.tags && Array.isArray(p.tags)) {
-          p.tags.forEach(t => tagsSet.add(t));
-        }
-      });
-      setDynamicTags(['All', ...Array.from(tagsSet)]);
+      const newPosts = data || [];
       
-      if (activeTagFilter !== 'All') {
-        finalData = finalData.filter(p => p.tags && p.tags.includes(activeTagFilter));
+      // Since the RPC returns flat columns (author_username, etc), we map them to match the expected format
+      const formattedPosts = newPosts.map(p => ({
+        ...p,
+        profiles: {
+          username: p.author_username,
+          display_name: p.author_display_name,
+          avatar_url: p.author_avatar_url
+        },
+        likes: [{ count: Number(p.likes_count) }],
+        comments: [{ count: Number(p.comments_count) }]
+      }));
+
+      if (isInitial) {
+        setPosts(formattedPosts);
+        
+        // Only fetch all tags once on initial load (for the tag filter UI)
+        if (activeTagFilter === 'All') {
+           const { data: allTagsData } = await supabase.from('posts').select('tags');
+           const tagsSet = new Set();
+           allTagsData?.forEach(p => {
+             if (p.tags && Array.isArray(p.tags)) {
+               p.tags.forEach(t => tagsSet.add(t));
+             }
+           });
+           setDynamicTags(['All', ...Array.from(tagsSet)]);
+        }
+      } else {
+        setPosts(prev => [...prev, ...formattedPosts]);
       }
       
-      if (activeTab === 'Unanswered') {
-        finalData = finalData.filter(p => p.comments[0]?.count === 0);
-      } else if (activeTab === 'Trending') {
-        finalData = finalData.sort((a, b) => (b.likes[0]?.count || 0) - (a.likes[0]?.count || 0));
-      } else if (activeTab === 'For You' && user) {
-        try {
-          // 1. Fetch connections
-          const { data: connData } = await supabase.from('connections').select('following_id').eq('follower_id', user.id);
-          const followingIds = connData?.map(c => c.following_id) || [];
-          
-          // 2. Fetch top user interests
-          const { data: interestsData } = await supabase
-            .from('user_interests')
-            .select('tag, interaction_score')
-            .eq('user_id', user.id)
-            .order('interaction_score', { ascending: false })
-            .limit(10);
-            
-          const topTags = interestsData?.map(i => i.tag) || [];
+      setHasMore(newPosts.length === POSTS_PER_PAGE);
 
-          // 3. Score and sort posts
-          const now = new Date().getTime();
-          
-          finalData = finalData.sort((a, b) => {
-            const getScore = (post) => {
-              let score = 0;
-              
-              // Base Connections Boost (+100)
-              if (followingIds.includes(post.author_id)) score += 100;
-              
-              // Tag Interests Boost (+20 per matched top tag)
-              if (post.tags && post.tags.length > 0) {
-                post.tags.forEach(tag => {
-                  if (topTags.includes(tag)) score += 20;
-                });
-              }
-              
-              // Popularity Boost (+2 per like, +3 per comment)
-              score += (post.likes?.[0]?.count || 0) * 2;
-              score += (post.comments?.[0]?.count || 0) * 3;
-              
-              // Recency Decay (Lose 1 point per hour old)
-              const hoursOld = (now - new Date(post.created_at).getTime()) / (1000 * 60 * 60);
-              score -= (hoursOld * 1);
-              
-              return score;
-            };
-            
-            return getScore(b) - getScore(a);
-          });
-          
-        } catch (e) {
-          console.error('Error fetching data for personalized feed:', e);
-        }
-      }
-
-      setPosts(finalData);
     } catch (err) {
       console.error('Error fetching posts:', err.message);
     } finally {
-      setLoading(false);
+      if (isInitial) setLoading(false);
+      else setLoadingMore(false);
     }
+  };
+
+  const loadMore = () => {
+    const nextOffset = pageOffset + POSTS_PER_PAGE;
+    setPageOffset(nextOffset);
+    fetchPosts(nextOffset, false);
   };
 
   return (
@@ -218,39 +218,53 @@ const DashboardPageClient = () => {
         ) : posts.length === 0 ? (
           <div className="text-center p-8 text-white/50">No discussions found.</div>
         ) : (
-          <div 
-            style={{ 
-              height: `${virtualizer.getTotalSize()}px`, 
-              width: '100%', 
-              position: 'relative' 
-            }}
-          >
-            {virtualizer.getVirtualItems().map((virtualItem) => {
-              const post = posts[virtualItem.index];
-              return (
-                <div
-                  key={virtualItem.key}
-                  data-index={virtualItem.index}
-                  ref={virtualizer.measureElement}
-                  style={{
-                    position: 'absolute',
-                    top: 0,
-                    left: 0,
-                    width: '100%',
-                    transform: `translateY(${virtualItem.start}px)`,
-                    paddingBottom: '1rem',
-                  }}
-                >
-                  <PostCard 
-                    post={post} 
-                    onReport={setReportModalPost} 
-                    onQuickProfile={(id) => router.push(`/profile/${id}`)}
-                    onDelete={(deletedId) => setPosts(prev => prev.filter(p => p.id !== deletedId))}
-                  />
-                </div>
-              );
-            })}
-          </div>
+          <>
+            <div 
+              style={{ 
+                height: `${virtualizer.getTotalSize()}px`, 
+                width: '100%', 
+                position: 'relative' 
+              }}
+            >
+              {virtualizer.getVirtualItems().map((virtualItem) => {
+                const post = posts[virtualItem.index];
+                return (
+                  <div
+                    key={virtualItem.key}
+                    data-index={virtualItem.index}
+                    ref={virtualizer.measureElement}
+                    style={{
+                      position: 'absolute',
+                      top: 0,
+                      left: 0,
+                      width: '100%',
+                      transform: `translateY(${virtualItem.start}px)`,
+                      paddingBottom: '1rem',
+                    }}
+                  >
+                    <PostCard 
+                      post={post} 
+                      onReport={setReportModalPost} 
+                      onQuickProfile={(id) => router.push(`/profile/${id}`)}
+                      onDelete={(deletedId) => setPosts(prev => prev.filter(p => p.id !== deletedId))}
+                    />
+                  </div>
+                );
+              })}
+            </div>
+            
+            {loadingMore && (
+              <div className="flex justify-center p-8 mb-8">
+                 <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+              </div>
+            )}
+            
+            {!hasMore && posts.length > 0 && (
+              <div className="text-center p-8 mb-8 text-white/40 text-sm">
+                You have reached the end of the feed.
+              </div>
+            )}
+          </>
         )}
       </div>
       

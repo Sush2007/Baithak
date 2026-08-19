@@ -135,31 +135,25 @@ function SupportModal({ card, onClose }) {
   const [message, setMessage] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = async () => {
+  const handleSubmit = () => {
     if (!message.trim() || message.trim().length < 10) {
       alert('Please enter at least 10 characters.');
       return;
     }
-    setIsSubmitting(true);
-    try {
-      const res = await fetch('/api/support', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          type: card.title,
-          message: message.trim()
-        })
-      });
-      if (!res.ok) {
-        throw new Error('Failed to send support request');
-      }
-      alert('Thank you! Your request has been sent to our support team.');
-      onClose();
-    } catch (err) {
-      alert('An error occurred. Please try again later.');
-    } finally {
-      setIsSubmitting(false);
-    }
+    
+    // Optimistic UI: Instantly close the modal and notify the user
+    alert('Thank you! Your request has been sent to our support team.');
+    onClose();
+
+    // Fire-and-forget background request
+    fetch('/api/support', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        type: card.title,
+        message: message.trim()
+      })
+    }).catch(err => console.error('Background support submission failed:', err));
   };
 
   return (

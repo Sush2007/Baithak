@@ -117,124 +117,124 @@ export default function OpenDiscussionModal({ isOpen, onClose }) {
   const handleSubmit = async () => {
     if (!content.trim() || !user) return;
     
-    setIsSubmitting(true);
-    let finalMediaUrl = null;
-    let finalMediaType = null;
+    // Optimistically close modal
+    onClose();
 
-    try {
-      if (mediaFile) {
-        setUploadProgress(10);
-        
-        // 1. Get Session Token
-        const { data: sessionData } = await supabase.auth.getSession();
-        const token = sessionData?.session?.access_token;
-        if (!token) throw new Error("Not authenticated");
+    toast.promise(
+      (async () => {
+        let finalMediaUrl = null;
+        let finalMediaType = null;
 
-        // 2. Request Presigned URL
-        const extension = mediaFile.name.split('.').pop();
-        const filename = `users/${user.id}/posts/${Date.now()}.${extension}`;
-        const res = await fetch(`/api/v1/storage/presigned-url?filename=${encodeURIComponent(filename)}&content_type=${encodeURIComponent(mediaFile.type)}`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
+        if (mediaFile) {
+          // 1. Get Session Token
+          const { data: sessionData } = await supabase.auth.getSession();
+          const token = sessionData?.session?.access_token;
+          if (!token) throw new Error("Not authenticated");
 
-        if (!res.ok) {
-          const errorData = await res.json();
-          throw new Error(errorData.error || "Failed to get upload URL");
+          // 2. Request Presigned URL
+          const extension = mediaFile.name.split('.').pop();
+          const filename = `users/${user.id}/posts/${Date.now()}.${extension}`;
+          const res = await fetch(`/api/v1/storage/presigned-url?filename=${encodeURIComponent(filename)}&content_type=${encodeURIComponent(mediaFile.type)}`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+          });
+
+          if (!res.ok) {
+            const errorData = await res.json();
+            throw new Error(errorData.error || "Failed to get upload URL");
+          }
+          const { presigned_url, public_url } = await res.json();
+
+          // 3. Upload to R2
+          const uploadRes = await fetch(presigned_url, {
+            method: 'PUT',
+            headers: { 'Content-Type': mediaFile.type },
+            body: mediaFile
+          });
+
+          if (!uploadRes.ok) throw new Error("Failed to upload file to storage");
+          
+          finalMediaUrl = public_url;
+          finalMediaType = mediaFile.type.startsWith('video/') ? 'video' : 'image';
         }
-        const { presigned_url, public_url } = await res.json();
-        setUploadProgress(50);
 
-        // 3. Upload to R2
-        const uploadRes = await fetch(presigned_url, {
-          method: 'PUT',
-          headers: { 'Content-Type': mediaFile.type },
-          body: mediaFile
-        });
-
-        if (!uploadRes.ok) throw new Error("Failed to upload file to storage");
-        
-        finalMediaUrl = public_url;
-        finalMediaType = mediaFile.type.startsWith('video/') ? 'video' : 'image';
-        setUploadProgress(90);
-      }
-
-      const tags = [];
-
-      // Extract hashtags
-      const hashtagRegex = /#(\w+)/g;
-      let match;
-      while ((match = hashtagRegex.exec(content)) !== null) {
-        const tag = match[1].toLowerCase();
-        if (!tags.includes(tag)) {
-          tags.push(tag);
+        const tags = [];
+        const hashtagRegex = /#(\w+)/g;
+        let match;
+        while ((match = hashtagRegex.exec(content)) !== null) {
+          const tag = match[1].toLowerCase();
+          if (!tags.includes(tag)) {
+            tags.push(tag);
+          }
         }
-      }
 
-      // --- AI Moderation Step ---
-      if (mediaFile) setUploadProgress(95);
-      const modRes = await fetch('/api/moderate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          title: title.trim(),
-          content: content.trim(),
-          mediaUrl: finalMediaUrl,
-          mediaType: finalMediaType
-        })
-      });
-
-      if (modRes.ok) {
-        const modData = await modRes.json();
-        if (modData.isSafe === false) {
-          throw new Error(`Your post was blocked by Auto-Moderator: ${modData.reason || 'Inappropriate content'}`);
-        }
-      }
-      // --------------------------
-
-      const { data: insertedPost, error } = await supabase.from('posts').insert([
-        {
-          author_id: user.id,
-          title: title.trim(),
-          content: content.trim(),
-          tags,
-          media_url: finalMediaUrl,
-          media_type: finalMediaType
-        }
-      ]).select().single();
-
-      if (error) throw error;
-      
-      // Award Honor Points
-      try {
-        await fetch('/api/honor/award', {
+        // --- AI Moderation Step ---
+        const modRes = await fetch('/api/moderate', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            actionType: 'ASK_DISCUSSION',
-            points: 3,
-            referenceId: insertedPost.id
+            title: title.trim(),
+            content: content.trim(),
+            mediaUrl: finalMediaUrl,
+            mediaType: finalMediaType
           })
         });
-      } catch (honorErr) {
-        console.error('Failed to award honor points', honorErr);
-      }
 
-      setTitle('');
-      setContent('');
-      setMediaFile(null);
-      setMediaPreview(null);
-      setUploadProgress(100);
-      onClose();
-      
-      window.location.reload();
-      
-    } catch (err) {
-      console.error('Error creating post:', err.message);
-      alert(`Failed to post discussion: ${err.message}`);
-    } finally {
-      setIsSubmitting(false);
-      setUploadProgress(0);
-    }
+        if (modRes.ok) {
+          const modData = await modRes.json();
+          if (modData.isSafe === false) {
+            throw new Error(`Your post was blocked by Auto-Moderator: ${modData.reason || 'Inappropriate content'}`);
+          }
+        }
+
+        const { data: insertedPost, error } = await supabase.from('posts').insert([
+          {
+            author_id: user.id,
+            title: title.trim(),
+            content: content.trim(),
+            tags,
+            media_url: finalMediaUrl,
+            media_type: finalMediaType
+          }
+        ]).select('*, profiles!posts_author_id_fkey(username, display_name, avatar_url)').single();
+
+        if (error) throw error;
+        
+        // Award Honor Points
+        try {
+          await fetch('/api/honor/award', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              actionType: 'ASK_DISCUSSION',
+              points: 3,
+              referenceId: insertedPost.id
+            })
+          });
+        } catch (honorErr) {
+          console.error('Failed to award honor points', honorErr);
+        }
+
+        setTitle('');
+        setContent('');
+        setMediaFile(null);
+        setMediaPreview(null);
+        
+        // Inject into feed optimistically
+        const formattedPost = {
+          ...insertedPost,
+          likes: [{ count: 0 }],
+          comments: [{ count: 0 }]
+        };
+        window.dispatchEvent(new CustomEvent('new_post_created', { detail: formattedPost }));
+
+        return insertedPost;
+      })(),
+      {
+        loading: 'Posting discussion...',
+        success: 'Discussion posted successfully!',
+        error: (err) => `Failed to post: ${err.message}`
+      }
+    );
   };
 
   useEffect(() => {

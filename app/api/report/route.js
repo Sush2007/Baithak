@@ -73,6 +73,16 @@ export async function POST(request) {
     // We need the original author ID to deduct points. We must fetch it.
     const { data: targetData } = await supabase.from(targetTable).select('author_id').eq('id', targetId).single();
     const authorId = targetData?.author_id || '';
+    
+    // Create an admin client to update the status to 'reported' (RLS prevents anon users from updating other's posts)
+    if (process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      const adminClient = createServerClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL,
+        process.env.SUPABASE_SERVICE_ROLE_KEY,
+        { cookies: { getAll() { return []; }, setAll() {} } }
+      );
+      await adminClient.from(targetTable).update({ status: 'reported' }).eq('id', targetId);
+    }
 
     const dashboardLink = `https://supabase.com/dashboard/project/meezxcykzndoopudrydv/editor/${targetTable}?filter=id%3Aeq%3A${targetId}`;
     
@@ -87,7 +97,7 @@ export async function POST(request) {
     // 7. Dispatch Email
     const { data, error } = await resend.emails.send({
       from: 'Baithak Support <support@baithakpe.com>', // Assuming verified domain
-      to: ['report@baithakpe.com'], // Forwards to Google Group
+      to: [process.env.REPORT_EMAIL_TO || 'baithak-support@googlegroups.com'], // Forwards to Google Group
       replyTo: profile?.email || user.email,
       subject: `🚩 [CONTENT REPORT] ${reason}`,
       html: `

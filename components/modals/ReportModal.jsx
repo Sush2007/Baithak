@@ -25,41 +25,39 @@ const ReportModal = ({ isOpen, onClose, post }) => {
       return;
     }
     
-    setIsSubmitting(true);
-    const toastId = toast.loading('Submitting report...');
+    // Optimistically close modal
+    onClose();
     
-    try {
-      const isComment = post.type === 'comment';
-      
-      const response = await fetch('/api/report', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          post_id: isComment ? null : post.id,
-          comment_id: isComment ? post.id : null,
-          reason: reportReason,
-          details: details,
-          post_content: post.content || post.text || 'No content provided'
-        })
-      });
+    toast.promise(
+      (async () => {
+        const isComment = post.type === 'comment';
+        
+        const response = await fetch('/api/report', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            post_id: isComment ? null : post.id,
+            comment_id: isComment ? post.id : null,
+            reason: reportReason,
+            details: details,
+            post_content: post.content || post.text || 'No content provided'
+          })
+        });
 
-      const data = await response.json();
+        const data = await response.json();
 
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to submit report');
+        if (!response.ok) {
+          throw new Error(data.error || 'Failed to submit report');
+        }
+        
+        return data;
+      })(),
+      {
+        loading: 'Submitting report...',
+        success: 'Report submitted successfully. Our team will review it shortly.',
+        error: (err) => err.message
       }
-      
-      toast.success('Report submitted successfully. Our team will review it shortly.', { id: toastId });
-      
-      setTimeout(() => {
-        onClose();
-      }, 1500);
-
-    } catch (error) {
-      console.error('Error submitting report:', error);
-      toast.error(error.message, { id: toastId });
-      setIsSubmitting(false);
-    }
+    );
   };
 
   if (!isOpen) return null;

@@ -148,9 +148,9 @@ export default function QuickProfileModal({ userId, onClose, onReport }) {
             </div>
 
             <div className="space-y-3">
-              {profile.username && (
+              {profile.id && (
                 <Link 
-                  href={`/profile/${profile.username}`}
+                  href={`/profile/${profile.id}`}
                   onClick={onClose}
                   className="w-full flex items-center justify-center gap-2 py-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-white font-semibold text-sm transition-all"
                 >

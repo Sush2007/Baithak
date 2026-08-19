@@ -237,6 +237,7 @@ export default function UserProfilePage() {
               key={post.id} 
               post={post} 
               onDelete={(deletedId) => setPosts(prev => prev.filter(p => p.id !== deletedId))}
+              onQuickProfile={(id) => window.location.href = `/profile/${id}`}
             />
           ))
         ) : (

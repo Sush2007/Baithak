@@ -59,7 +59,25 @@ export default function NotificationsPage() {
       
       const { data, error } = await query;
       if (error) throw error;
-      setNotifications(data || []);
+      
+      // Deduplicate notifications (in case of duplicate DB triggers)
+      const uniqueNotifications = [];
+      const seen = new Set();
+      
+      (data || []).forEach(notif => {
+        // Create a unique key for the notification event
+        const key = `${notif.type}-${notif.post_id}-${notif.actor?.username || notif.actor_id}-${new Date(notif.created_at).getTime()}`;
+        // Fallback looser key if timestamps differ slightly but it's the same event
+        const looseKey = `${notif.type}-${notif.post_id}-${notif.actor?.username || notif.actor_id}`;
+        
+        if (!seen.has(key) && !seen.has(looseKey)) {
+          seen.add(key);
+          seen.add(looseKey);
+          uniqueNotifications.push(notif);
+        }
+      });
+      
+      setNotifications(uniqueNotifications);
     } catch (err) {
       console.error('Error fetching notifications:', err.message);
     } finally {

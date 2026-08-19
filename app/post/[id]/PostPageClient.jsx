@@ -76,7 +76,7 @@ const PostPageClient = ({ postId }) => {
               <PostCard 
                 post={post} 
                 onReport={setReportModalPost}
-                onQuickProfile={(id) => console.log('Profile', id)}
+                onQuickProfile={(id) => window.location.href = `/profile/${id}`}
               />
               <ReportModal 
                 isOpen={!!reportModalPost} 
