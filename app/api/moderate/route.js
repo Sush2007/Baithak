@@ -11,7 +11,7 @@ export async function POST(request) {
     }
 
     const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-    const model = genAI.getGenerativeModel({ model: 'gemini-3.5-flash' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
     
     let parts = [
       `You are a strict automated content moderator for a university social platform.

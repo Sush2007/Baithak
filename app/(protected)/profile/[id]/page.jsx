@@ -206,11 +206,24 @@ export default function UserProfilePage() {
           </div>
 
           <div>
-            <div className="flex items-center gap-2">
-              <h2 className="text-2xl font-bold text-white">{profile.display_name}</h2>
-              {profile.is_verified && <BadgeCheck size={20} className="text-[#0052FF]" fill="currentColor" stroke="#1A1B22" strokeWidth={1} />}
+            <div className="flex items-start justify-between">
+              <div>
+                <div className="flex items-center gap-2">
+                  <h2 className="text-2xl font-bold text-white">{profile.display_name}</h2>
+                  {profile.is_verified && <BadgeCheck size={20} className="text-[#0052FF]" fill="currentColor" stroke="#1A1B22" strokeWidth={1} />}
+                </div>
+                <p className="text-[#8E909E] text-sm mb-4">@{profile.username}</p>
+              </div>
+              
+              <div className="flex flex-col items-end">
+                <span className="text-xl font-bold text-blue-400">
+                  {profile?.lifetime_honor >= 1000 
+                    ? `${(profile.lifetime_honor / 1000).toFixed(1)}k`
+                    : profile?.lifetime_honor || 0}
+                </span>
+                <span className="text-[10px] text-white/50 uppercase tracking-wider font-bold">Honor Points</span>
+              </div>
             </div>
-            <p className="text-[#8E909E] text-sm mb-4">@{profile.username}</p>
 
             <div className="flex flex-wrap gap-4 text-sm text-[#C4C5D5] mb-4">
               <Link href={`/profile/${id}/connections`} className="flex items-center gap-1.5 hover:underline">

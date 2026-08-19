@@ -33,12 +33,18 @@ export async function GET(request) {
       );
     }
 
-    // 2. Handle Reject Action (No-op, just confirm to admin)
+    // 2. Handle Reject Action (Mark as safe)
     if (action === 'reject') {
+      const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+      if (serviceRoleKey) {
+        const supabaseAdmin = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, serviceRoleKey, { auth: { persistSession: false, autoRefreshToken: false } });
+        await supabaseAdmin.from(targetTable).update({ status: 'active' }).eq('id', targetId);
+      }
+      
       return new NextResponse(`
         <div style="font-family:sans-serif; padding: 40px; text-align:center;">
           <h1 style="color:#10B981;">Report Rejected</h1>
-          <p>You have marked this content as safe. No action was taken.</p>
+          <p>You have marked this content as safe and it has been restored to the feed.</p>
           <button onclick="window.close()" style="padding: 10px 20px; cursor: pointer; background: #e5e7eb; border: none; border-radius: 6px; font-weight: bold; margin-top: 20px;">Close Window</button>
         </div>
       `, { headers: { 'Content-Type': 'text/html' } });
@@ -73,8 +79,8 @@ export async function GET(request) {
       if (authorId && authorId !== 'none') {
         const { error: rpcError } = await supabaseAdmin.rpc('award_honor_points', {
           p_user_id: authorId,
-          p_points: -20,
-          p_reason: 'Content removed by moderator'
+          p_action_type: 'CONTENT_REMOVED',
+          p_points: -20
         });
 
         if (rpcError) {

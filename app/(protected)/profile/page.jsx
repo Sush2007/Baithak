@@ -147,9 +147,9 @@ export default function ProfilePage() {
           </div>
           <div className="flex flex-col">
             <span className="text-xl font-bold text-blue-400">
-              {profile?.honor_points >= 1000 
-                ? (profile.honor_points / 1000).toFixed(1) + 'k' 
-                : (profile?.honor_points || 0)}
+              {profile?.lifetime_honor >= 1000 
+                ? `${(profile.lifetime_honor / 1000).toFixed(1)}k` 
+                : profile?.lifetime_honor || 0}
             </span>
             <span className="text-xs text-white/50 uppercase tracking-wider font-medium">Honour Points</span>
           </div>

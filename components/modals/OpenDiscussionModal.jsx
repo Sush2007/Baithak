@@ -205,7 +205,7 @@ export default function OpenDiscussionModal({ isOpen, onClose }) {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              actionType: 'ASK_DISCUSSION',
+              actionType: 'POST_CREATE',
               points: 3,
               referenceId: insertedPost.id
             })

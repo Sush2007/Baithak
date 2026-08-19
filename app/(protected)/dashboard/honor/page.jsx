@@ -129,9 +129,9 @@ export default function HonorDashboard() {
             ) : null}
             <div 
               style={{ display: currentBadge.imageUrl ? 'none' : 'flex' }}
-              className="w-full h-full bg-white/5 rounded-full items-center justify-center text-3xl border border-white/10"
+              className="w-full h-full bg-white/5 rounded-full items-center justify-center border border-white/10"
             >
-               {currentBadge.name.split(' ')[0]}
+               <Award size={36} className="text-accent-yellow/50" />
             </div>
           </div>
           
