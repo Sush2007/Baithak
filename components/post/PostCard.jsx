@@ -24,7 +24,7 @@ const timeAgo = (dateStr) => {
 };
 
 const PostCard = ({ post, onReport, onQuickProfile, onDelete }) => {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const [openDropdownId, setOpenDropdownId] = useState(false);
   const [isLiked, setIsLiked] = useState(false);
   const [likesCount, setLikesCount] = useState(post.likes?.[0]?.count || 0);
@@ -37,6 +37,8 @@ const PostCard = ({ post, onReport, onQuickProfile, onDelete }) => {
   const [loadingReplies, setLoadingReplies] = useState(false);
   const [replyContent, setReplyContent] = useState('');
   const [repliesCount, setRepliesCount] = useState(post.comments?.[0]?.count || 0);
+  const [editingReplyId, setEditingReplyId] = useState(null);
+  const [editReplyContent, setEditReplyContent] = useState('');
 
   useEffect(() => {
     if (user && post.id) {
@@ -278,6 +280,70 @@ const PostCard = ({ post, onReport, onQuickProfile, onDelete }) => {
     }
   };
 
+  const submitEditReply = async (replyId) => {
+    if (!editReplyContent.trim() || !user) return;
+    setIsSubmitting(true);
+    try {
+      // --- AI Moderation Step ---
+      const modRes = await fetch('/api/moderate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: 'Edit reply',
+          content: editReplyContent.trim()
+        })
+      });
+
+      if (modRes.ok) {
+        const modData = await modRes.json();
+        if (modData.isSafe === false) {
+          throw new Error(`Your edit was blocked by Auto-Moderator: ${modData.reason || 'Inappropriate content'}`);
+        }
+      }
+      // --------------------------
+
+      const { error } = await supabase
+        .from('comments')
+        .update({ content: editReplyContent.trim() })
+        .eq('id', replyId)
+        .eq('author_id', user.id);
+        
+      if (error) throw error;
+      
+      setReplies(replies.map(r => r.id === replyId ? { ...r, content: editReplyContent.trim() } : r));
+      setEditingReplyId(null);
+    } catch (err) {
+      console.error('Error editing reply:', err);
+      alert(err.message || 'Failed to edit reply.');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleDeleteReply = async (replyId) => {
+    if (!window.confirm('Are you sure you want to delete this reply?')) return;
+    
+    // Optimistic delete
+    setReplies(replies.filter(r => r.id !== replyId));
+    setRepliesCount(prev => Math.max(0, prev - 1));
+    
+    // Background sync
+    try {
+      const { error } = await supabase
+        .from('comments')
+        .delete()
+        .eq('id', replyId)
+        .eq('author_id', user.id);
+        
+      if (error) {
+        console.error('Error deleting reply:', error);
+        fetchReplies();
+      }
+    } catch (err) {
+      console.error('Error deleting reply:', err);
+    }
+  };
+
   return (
     <article 
       ref={postRef} 
@@ -504,7 +570,33 @@ const PostCard = ({ post, onReport, onQuickProfile, onDelete }) => {
                             </span>
                           )}
                         </div>
-                        <p className="text-[14px] text-white/90 leading-relaxed whitespace-pre-wrap break-words">{reply.content}</p>
+                        {editingReplyId === reply.id ? (
+                          <div className="mt-2" onClick={(e) => e.stopPropagation()}>
+                            <textarea
+                              value={editReplyContent}
+                              onChange={(e) => setEditReplyContent(e.target.value)}
+                              className="w-full bg-[#1A1B22] border border-white/20 rounded p-2 text-[14px] text-white placeholder-[#8E909E] focus:outline-none focus:border-blue-500 resize-none"
+                              rows={2}
+                            />
+                            <div className="flex justify-end gap-2 mt-2">
+                              <button
+                                onClick={() => setEditingReplyId(null)}
+                                className="px-3 py-1 text-xs text-white/70 hover:text-white hover:bg-white/10 rounded transition-colors"
+                              >
+                                Cancel
+                              </button>
+                              <button
+                                onClick={() => submitEditReply(reply.id)}
+                                disabled={isSubmitting || !editReplyContent.trim()}
+                                className="px-3 py-1 text-xs bg-[#1d9bf0] hover:bg-[#1a8cd8] text-white rounded transition-colors disabled:opacity-50"
+                              >
+                                {isSubmitting ? 'Saving...' : 'Save'}
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <p className="text-[14px] text-white/90 leading-relaxed whitespace-pre-wrap break-words">{reply.content}</p>
+                        )}
                         
                         {/* Interactive mini-actions for replies */}
                         <div className="mt-2 flex items-center justify-end gap-2">
@@ -525,6 +617,22 @@ const PostCard = ({ post, onReport, onQuickProfile, onDelete }) => {
                               <Bookmark size={12} /> Mark as Best Response
                             </button>
                           )}
+                          {user?.id === reply.author_id && (
+                            <>
+                              <button
+                                onClick={(e) => { e.stopPropagation(); setEditingReplyId(reply.id); setEditReplyContent(reply.content); }}
+                                className="text-[11px] font-semibold text-blue-400 hover:text-blue-300 hover:bg-blue-500/10 px-2.5 py-1 rounded transition-colors opacity-0 group-hover:opacity-100"
+                              >
+                                Edit
+                              </button>
+                              <button
+                                onClick={(e) => { e.stopPropagation(); handleDeleteReply(reply.id); }}
+                                className="text-[11px] font-semibold text-red-400 hover:text-red-300 hover:bg-red-500/10 px-2.5 py-1 rounded transition-colors opacity-0 group-hover:opacity-100"
+                              >
+                                Delete
+                              </button>
+                            </>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -541,8 +649,8 @@ const PostCard = ({ post, onReport, onQuickProfile, onDelete }) => {
                 ) : user ? (
                   <div className="flex gap-3 mt-2 items-start pt-3 relative z-10">
                     <div className="relative w-8 h-8 rounded-full overflow-hidden shrink-0 border border-white/10 ring-4 ring-[#1A1B22] bg-[#0C0E14]">
-                      {user.user_metadata?.avatar_url || (user.identities && user.identities[0]?.identity_data?.avatar_url) ? (
-                        <Image src={user.user_metadata?.avatar_url || user.identities[0]?.identity_data?.avatar_url} alt="You" fill className="object-cover" />
+                      {profile?.avatar_url ? (
+                        <Image src={profile.avatar_url} alt="You" fill className="object-cover" />
                       ) : (
                         <div className="w-full h-full bg-gradient-to-tr from-[#0052FF] to-[#0040DB] flex items-center justify-center text-xs">👤</div>
                       )}

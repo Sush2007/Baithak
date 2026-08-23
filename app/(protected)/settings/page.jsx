@@ -9,6 +9,12 @@ import { usePushNotifications } from '../../../hooks/usePushNotifications';
 import { getCurrentHonorBadge, getNextHonorBadge } from '../../../lib/badges';
 import Link from 'next/link';
 
+const R2_BASE_URL = (process.env.NEXT_PUBLIC_R2_URL || 'https://pub-a45e2aa5add24ba0a8813221a09a64a9.r2.dev').replace(/\/$/, '');
+
+const PRESET_AVATARS = Array.from({ length: 10 }, (_, i) => 
+  `${R2_BASE_URL}/avatars/preset/avatar${i + 1}.png`
+);
+
 export default function SettingsPage() {
   const { profile, user, session, refreshProfile } = useAuth();
   const { isSupported, isSubscribed, isLoading, subscribe, unsubscribe } = usePushNotifications();
@@ -44,6 +50,7 @@ export default function SettingsPage() {
   const avatarInputRef = useRef(null);
   const [avatarFile, setAvatarFile] = useState(null);
   const [localAvatarUrl, setLocalAvatarUrl] = useState('');
+  const [customAvatarUrl, setCustomAvatarUrl] = useState('');
 
   useEffect(() => {
     if (profile) {
@@ -145,7 +152,12 @@ export default function SettingsPage() {
         linkedin_url: formData.linkedin_url,
         cover_url: finalCoverUrl
       };
-      if (avatarFile) updateData.avatar_url = finalAvatarUrl;
+      
+      if (avatarFile) {
+        updateData.avatar_url = finalAvatarUrl;
+      } else if (customAvatarUrl) {
+        updateData.avatar_url = customAvatarUrl;
+      }
 
       const { error } = await supabase
         .from('profiles')
@@ -157,6 +169,7 @@ export default function SettingsPage() {
       setIsEditing(false);
       setCoverFile(null);
       setAvatarFile(null);
+      setCustomAvatarUrl('');
       // Optional: alert success or rely on local state
     } catch (error) {
       console.error('Error updating profile:', error);
@@ -245,7 +258,7 @@ export default function SettingsPage() {
               onClick={() => isEditing && coverInputRef.current?.click()}
             >
               {(localCoverUrl || profile?.cover_url) && (
-                <Image src={localCoverUrl || profile.cover_url} alt="Cover" fill className="object-cover" />
+                <Image src={localCoverUrl || profile.cover_url} alt="Cover" fill className="object-cover" unoptimized={true} />
               )}
               {isEditing && (
                 <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
@@ -272,8 +285,8 @@ export default function SettingsPage() {
                 className={`w-20 h-20 rounded-full border-4 border-[#1A1B22] bg-[#2A2B32] overflow-hidden relative group z-10 shrink-0 ${isEditing ? 'cursor-pointer' : ''}`}
                 onClick={() => isEditing && avatarInputRef.current?.click()}
               >
-                {(localAvatarUrl || profile?.avatar_url) ? (
-                  <Image src={localAvatarUrl || profile.avatar_url} alt="Avatar" fill className="object-cover" />
+                {(localAvatarUrl || customAvatarUrl || profile?.avatar_url) ? (
+                  <Image src={localAvatarUrl || customAvatarUrl || profile.avatar_url} alt="Avatar" fill className="object-cover" unoptimized={true} />
                 ) : (
                   <div className="w-full h-full bg-gradient-to-tr from-[#8A2387] to-[#F27121] flex items-center justify-center text-2xl">👤</div>
                 )}
@@ -292,6 +305,7 @@ export default function SettingsPage() {
                     if (file) {
                       setAvatarFile(file);
                       setLocalAvatarUrl(URL.createObjectURL(file));
+                      setCustomAvatarUrl('');
                     }
                   }} 
                 />
@@ -301,6 +315,33 @@ export default function SettingsPage() {
                 <p className="text-[11px] text-[#8E909E]">Recommended: 512x512px</p>
               </div>
             </div>
+
+            {/* PRESET AVATARS UI */}
+            {isEditing && (
+              <div className="px-4 mt-2">
+                <p className="text-[11px] font-bold text-[#8E909E] uppercase tracking-wider mb-3">Or choose an avatar</p>
+                <div className="flex flex-wrap gap-3">
+                  {PRESET_AVATARS.map((url, idx) => (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => {
+                        setLocalAvatarUrl('');
+                        setAvatarFile(null);
+                        setCustomAvatarUrl(url);
+                      }}
+                      className={`relative w-12 h-12 rounded-full transition-all duration-300 overflow-hidden hover:scale-105 cursor-pointer bg-black/40 ${
+                        (customAvatarUrl === url || (!customAvatarUrl && !localAvatarUrl && profile?.avatar_url === url))
+                          ? 'ring-2 ring-offset-2 ring-offset-[#1A1B22] ring-[#FFC300]'
+                          : 'border border-transparent'
+                      }`}
+                    >
+                      <Image src={url} alt={`Preset ${idx + 1}`} fill sizes="48px" className="object-cover" unoptimized={true} />
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Form Fields */}

@@ -35,17 +35,18 @@ export default function UserConnectionsPage() {
       // Fetch accepted connections
       const { data: acceptedData } = await supabase
         .from('connections')
-        .select('*')
+        .select(`
+          *,
+          follower:profiles!connections_follower_id_fkey(id, username, display_name, avatar_url),
+          following:profiles!connections_following_id_fkey(id, username, display_name, avatar_url)
+        `)
         .eq('status', 'accepted')
         .or(`follower_id.eq.${id},following_id.eq.${id}`);
         
-      const connectionIds = acceptedData?.map(c => 
-        c.follower_id === id ? c.following_id : c.follower_id
+      const connectionProfiles = acceptedData?.map(c => 
+        // Use loose equality or lower case to be completely safe with UUID strings
+        c.follower_id.toLowerCase() === id.toLowerCase() ? c.following : c.follower
       ) || [];
-      
-      const { data: connectionProfiles } = connectionIds.length > 0 
-        ? await supabase.from('profiles').select('id, display_name, username, avatar_url').in('id', connectionIds)
-        : { data: [] };
 
       setConnections(connectionProfiles || []);
     } catch (err) {

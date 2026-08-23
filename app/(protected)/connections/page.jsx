@@ -36,20 +36,22 @@ export default function ConnectionsPage() {
         .or(`follower_id.eq.${profile.id},following_id.eq.${profile.id}`);
         
       const connectionProfiles = acceptedData?.map(c => 
-        c.follower_id === profile.id ? c.following : c.follower
-      ) || [];
+        (c.follower_id || '').toLowerCase() === (profile.id || '').toLowerCase() ? c.following : c.follower
+      ).filter(Boolean) || [];
 
       // Fetch pending requests (where someone else followed you)
-      const { data: pendingData } = await supabase
+      const { data: pendingData, error: pendingError } = await supabase
         .from('connections')
-        .select('follower_id')
+        .select(`
+          *,
+          follower:profiles!connections_follower_id_fkey(id, username, display_name, avatar_url)
+        `)
         .eq('following_id', profile.id)
         .eq('status', 'pending');
         
-      const pendingIds = pendingData?.map(p => p.follower_id) || [];
-      const { data: pendingProfiles } = pendingIds.length > 0
-        ? await supabase.from('profiles').select('id, display_name, username, avatar_url').in('id', pendingIds)
-        : { data: [] };
+      if (pendingError) console.error('Pending connections query error:', pendingError);
+        
+      const pendingProfiles = pendingData?.map(p => p.follower).filter(Boolean) || [];
 
       setConnections(connectionProfiles || []);
       setPendingRequests(pendingProfiles || []);

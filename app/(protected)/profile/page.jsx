@@ -1,58 +1,141 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useAuth } from '../../../context/AuthContext';
 import { MessageSquare, ArrowUpCircle, Eye, Share2, MoreHorizontal, MapPin, Link as LinkIcon, Calendar } from 'lucide-react';
-
-const TABS = ['Discussions', 'Replies', 'Achievements', 'Activity'];
-
-import { formatDistanceToNow } from 'date-fns';
 import { supabase } from '../../../lib/supabaseClient';
 import PostCard from '../../../components/post/PostCard';
+
+const TABS = ['Discussions', 'Replies', 'Achievements', 'Upvotes'];
 
 export default function ProfilePage() {
   const { profile, user } = useAuth();
   const [activeTab, setActiveTab] = useState('Discussions');
-  const [posts, setPosts] = useState([]);
-  const [isLoadingPosts, setIsLoadingPosts] = useState(true);
+  const [items, setItems] = useState([]);
+  const [isLoadingItems, setIsLoadingItems] = useState(true);
+  
+  // Stats
   const [connectionCount, setConnectionCount] = useState(0);
+  const [discussionsCount, setDiscussionsCount] = useState(0);
+  const [repliesCount, setRepliesCount] = useState(0);
 
-  React.useEffect(() => {
-    async function fetchPosts() {
+  // Fetch Stats once on load
+  useEffect(() => {
+    async function fetchStats() {
       if (!profile?.id) return;
-      setIsLoadingPosts(true);
+      
+      // Connections
+      const { count: cCount } = await supabase
+        .from('connections')
+        .select('*', { count: 'exact', head: true })
+        .eq('status', 'accepted')
+        .or(`follower_id.eq.${profile.id},following_id.eq.${profile.id}`);
+      setConnectionCount(cCount || 0);
+
+      // Discussions Count
+      const { count: dCount } = await supabase
+        .from('posts')
+        .select('*', { count: 'exact', head: true })
+        .eq('author_id', profile.id);
+      setDiscussionsCount(dCount || 0);
+
+      // Replies Count
+      const { count: rCount } = await supabase
+        .from('comments')
+        .select('*', { count: 'exact', head: true })
+        .eq('author_id', profile.id);
+      setRepliesCount(rCount || 0);
+    }
+    fetchStats();
+  }, [profile?.id]);
+
+  // Fetch Items when activeTab changes
+  useEffect(() => {
+    async function fetchItems() {
+      if (!profile?.id) return;
+      setIsLoadingItems(true);
+      setItems([]);
       try {
-        const { data, error } = await supabase
-          .from('posts')
-          .select(`
-            *, 
-            profiles!posts_author_id_fkey(display_name, username, avatar_url),
-            likes(count),
-            comments(count)
-          `)
-          .eq('author_id', profile.id)
-          .order('created_at', { ascending: false });
-
-        if (error) throw error;
-        setPosts(data || []);
-
-        const { count } = await supabase
-          .from('connections')
-          .select('*', { count: 'exact', head: true })
-          .eq('status', 'accepted')
-          .or(`follower_id.eq.${profile.id},following_id.eq.${profile.id}`);
+        let data = [];
+        
+        if (activeTab === 'Discussions') {
+          const { data: postsData } = await supabase
+            .from('posts')
+            .select(`
+              *, 
+              profiles!posts_author_id_fkey(display_name, username, avatar_url),
+              likes(count),
+              comments(count)
+            `)
+            .eq('author_id', profile.id)
+            .order('created_at', { ascending: false });
+          data = postsData || [];
+        } 
+        else if (activeTab === 'Replies') {
+          // Fetch posts that the user has replied to
+          const { data: commentsData } = await supabase
+            .from('comments')
+            .select(`
+              post_id,
+              posts!inner(
+                *,
+                profiles!posts_author_id_fkey(display_name, username, avatar_url),
+                likes(count),
+                comments(count)
+              )
+            `)
+            .eq('author_id', profile.id)
+            .order('created_at', { ascending: false });
           
-        setConnectionCount(count || 0);
+          // Extract posts and remove duplicates
+          if (commentsData) {
+            const uniquePosts = new Map();
+            commentsData.forEach(c => {
+              if (c.posts && !uniquePosts.has(c.posts.id)) {
+                uniquePosts.set(c.posts.id, c.posts);
+              }
+            });
+            data = Array.from(uniquePosts.values());
+          }
+        }
+        else if (activeTab === 'Activity') {
+          // Fetch upvoted posts
+          const { data: likesData } = await supabase
+            .from('likes')
+            .select(`
+              post_id,
+              posts!inner(
+                *,
+                profiles!posts_author_id_fkey(display_name, username, avatar_url),
+                likes(count),
+                comments(count)
+              )
+            `)
+            .eq('user_id', profile.id)
+            .order('created_at', { ascending: false });
+            
+          if (likesData) {
+            const uniquePosts = new Map();
+            likesData.forEach(l => {
+              if (l.posts && !uniquePosts.has(l.posts.id)) {
+                uniquePosts.set(l.posts.id, l.posts);
+              }
+            });
+            data = Array.from(uniquePosts.values());
+          }
+        }
+        
+        setItems(data);
       } catch (err) {
-        console.error('Error fetching user posts:', err);
+        console.error(`Error fetching ${activeTab}:`, err);
       } finally {
-        setIsLoadingPosts(false);
+        setIsLoadingItems(false);
       }
     }
-    fetchPosts();
-  }, [profile?.id]);
+    fetchItems();
+  }, [activeTab, profile?.id]);
 
   return (
     <div className="max-w-3xl w-full mx-auto pb-20 md:pb-0">
@@ -64,6 +147,7 @@ export default function ProfilePage() {
           alt="Cover" 
           fill 
           className="object-cover opacity-80" 
+          unoptimized={true}
         />
         <div className="absolute inset-0 bg-gradient-to-t from-[#0C0E14] via-transparent to-transparent opacity-80" />
       </div>
@@ -77,7 +161,7 @@ export default function ProfilePage() {
             {/* Avatar */}
             <div className="relative w-24 h-24 sm:w-32 sm:h-32 rounded-full overflow-hidden border-4 border-[#0C0E14] bg-[#1A1B22] shadow-2xl">
               {profile?.avatar_url ? (
-                <Image src={profile.avatar_url} alt="Profile Avatar" fill className="object-cover" />
+                <Image src={profile.avatar_url} alt="Profile Avatar" fill className="object-cover" unoptimized={true} />
               ) : (
                 <div className="w-full h-full bg-gradient-to-tr from-[#8A2387] to-[#F27121] flex items-center justify-center text-4xl">👤</div>
               )}
@@ -138,11 +222,11 @@ export default function ProfilePage() {
         {/* Stats Row */}
         <div className="flex items-center justify-between sm:justify-start sm:gap-8 mb-8 pb-8 border-b border-white/5">
           <div className="flex flex-col">
-            <span className="text-xl font-bold text-white">{posts.length}</span>
+            <span className="text-xl font-bold text-white">{discussionsCount}</span>
             <span className="text-xs text-white/50 uppercase tracking-wider font-medium">Discussions</span>
           </div>
           <div className="flex flex-col">
-            <span className="text-xl font-bold text-white">0</span>
+            <span className="text-xl font-bold text-white">{repliesCount}</span>
             <span className="text-xs text-white/50 uppercase tracking-wider font-medium">Replies</span>
           </div>
           <div className="flex flex-col">
@@ -173,20 +257,44 @@ export default function ProfilePage() {
           ))}
         </div>
 
-        {/* Profile Feed */}
-        <div className="space-y-4">
-          {isLoadingPosts ? (
+        {/* Profile Feed / Content */}
+        <div className="space-y-4 min-h-[300px]">
+          {isLoadingItems ? (
             <div className="flex items-center justify-center py-10">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
             </div>
-          ) : posts.length === 0 ? (
-            <div className="text-center py-10 text-white/50">No discussions posted yet.</div>
+          ) : activeTab === 'Achievements' ? (
+            <div className="text-center py-12 bg-white/5 rounded-xl border border-white/10">
+               <h3 className="text-xl font-bold text-white mb-2">Achievements & Badges</h3>
+               <p className="text-white/50 text-sm max-w-md mx-auto mb-6">Unlock badges by participating in discussions, helping others, and maintaining streaks.</p>
+               <div className="flex justify-center gap-4">
+                 <div className="flex flex-col items-center gap-2 p-4 bg-black/40 rounded-lg opacity-50 grayscale">
+                    <span className="text-3xl">🔥</span>
+                    <span className="text-xs font-bold text-white/70">7 Day Streak</span>
+                 </div>
+                 <div className="flex flex-col items-center gap-2 p-4 bg-black/40 rounded-lg opacity-50 grayscale">
+                    <span className="text-3xl">💡</span>
+                    <span className="text-xs font-bold text-white/70">Top Answerer</span>
+                 </div>
+                 <div className="flex flex-col items-center gap-2 p-4 bg-black/40 rounded-lg opacity-50 grayscale">
+                    <span className="text-3xl">🌟</span>
+                    <span className="text-xs font-bold text-white/70">Popular</span>
+                 </div>
+               </div>
+               <p className="text-xs text-blue-400 mt-6 font-medium tracking-widest uppercase">Coming Soon</p>
+            </div>
+          ) : items.length === 0 ? (
+            <div className="text-center py-10 text-white/50">
+              {activeTab === 'Discussions' && 'No discussions posted yet.'}
+              {activeTab === 'Replies' && 'You haven\'t replied to any discussions yet.'}
+              {activeTab === 'Activity' && 'You haven\'t upvoted any discussions yet.'}
+            </div>
           ) : (
-            posts.map(post => (
+            items.map(post => (
               <PostCard 
                 key={post.id} 
                 post={post} 
-                onDelete={(deletedId) => setPosts(prev => prev.filter(p => p.id !== deletedId))}
+                onDelete={(deletedId) => setItems(prev => prev.filter(p => p.id !== deletedId))}
                 onReport={(p) => console.log('Report', p)}
                 onQuickProfile={(id) => window.location.href = `/profile/${id}`}
               />

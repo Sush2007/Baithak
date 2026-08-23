@@ -310,3 +310,118 @@ DROP TRIGGER IF EXISTS on_notification_created ON public.notifications;
 CREATE TRIGGER on_notification_created
   AFTER INSERT ON public.notifications
   FOR EACH ROW EXECUTE PROCEDURE public.handle_push_notification();
+
+-- ==============================================
+-- FEED ALGORITHM RPC
+-- ==============================================
+-- Uses a HackerNews / Reddit style ranking formula:
+-- Score = (Likes + Comments*2) / (Age in hours + 2)^1.5
+DROP FUNCTION IF EXISTS public.get_feed_posts(UUID, TEXT, TEXT, INT, INT);
+
+CREATE OR REPLACE FUNCTION public.get_feed_posts(
+  p_user_id UUID DEFAULT NULL,
+  p_tab TEXT DEFAULT 'For You',
+  p_tag_filter TEXT DEFAULT 'All',
+  p_limit INT DEFAULT 10,
+  p_offset INT DEFAULT 0
+)
+RETURNS TABLE (
+  id UUID,
+  author_id UUID,
+  title TEXT,
+  content TEXT,
+  tags TEXT[],
+  media_url TEXT,
+  media_type TEXT,
+  is_solved BOOLEAN,
+  is_hot BOOLEAN,
+  created_at TIMESTAMP WITH TIME ZONE,
+  updated_at TIMESTAMP WITH TIME ZONE,
+  author_username TEXT,
+  author_display_name TEXT,
+  author_avatar_url TEXT,
+  likes_count BIGINT,
+  comments_count BIGINT,
+  rank_score FLOAT
+) AS $$
+BEGIN
+  RETURN QUERY
+  SELECT 
+    p.id,
+    p.author_id,
+    p.title,
+    p.content,
+    p.tags,
+    p.media_url,
+    p.media_type,
+    COALESCE(p.is_solved, false) AS is_solved,
+    COALESCE(p.is_hot, false) AS is_hot,
+    p.created_at,
+    p.updated_at,
+    pr.username AS author_username,
+    pr.display_name AS author_display_name,
+    pr.avatar_url AS author_avatar_url,
+    COALESCE(l.likes_count, 0) AS likes_count,
+    COALESCE(c.comments_count, 0) AS comments_count,
+    (
+      (COALESCE(l.likes_count, 0) + COALESCE(c.comments_count, 0) * 2.0) /
+      POWER(EXTRACT(EPOCH FROM (now() - p.created_at))/3600.0 + 2.0, 1.5)
+    )::FLOAT AS rank_score
+  FROM public.posts p
+  LEFT JOIN public.profiles pr ON p.author_id = pr.id
+  LEFT JOIN (
+    SELECT post_id, COUNT(*) AS likes_count
+    FROM public.likes
+    GROUP BY post_id
+  ) l ON p.id = l.post_id
+  LEFT JOIN (
+    SELECT post_id, COUNT(*) AS comments_count
+    FROM public.comments
+    GROUP BY post_id
+  ) c ON p.id = c.post_id
+  WHERE 
+    (p_tag_filter = 'All' OR p_tag_filter = ANY(p.tags))
+    AND (
+      p_tab = 'For You' OR
+      (p_tab = 'Trending' AND p.is_hot = true) OR
+      (p_tab = 'Unanswered' AND COALESCE(c.comments_count, 0) = 0) OR
+      (p_tab = 'Solved' AND p.is_solved = true)
+    )
+  ORDER BY 
+    CASE WHEN p_tab = 'For You' THEN (
+      (COALESCE(l.likes_count, 0) + COALESCE(c.comments_count, 0) * 2.0) /
+      POWER(EXTRACT(EPOCH FROM (now() - p.created_at))/3600.0 + 2.0, 1.5)
+    ) END DESC NULLS LAST,
+    p.created_at DESC
+  LIMIT p_limit
+  OFFSET p_offset;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Add is_solved column to posts if not exists
+ALTER TABLE public.posts ADD COLUMN IF NOT EXISTS is_solved BOOLEAN DEFAULT false;
+-- Drop any existing SELECT policies on connections to replace them
+DO $$
+DECLARE
+    pol record;
+BEGIN
+    FOR pol IN 
+        SELECT policyname 
+        FROM pg_policies 
+        WHERE tablename = 'connections' 
+          AND cmd = 'SELECT'
+    LOOP
+        EXECUTE format('DROP POLICY IF EXISTS %I ON public.connections', pol.policyname);
+    END LOOP;
+END
+$$;
+
+-- Create a new policy that allows everyone to see accepted connections,
+-- and allows users to see their own pending connections.
+CREATE POLICY "Connections are viewable by everyone if accepted, else by involved users"
+ON public.connections FOR SELECT
+USING (
+  status = 'accepted' 
+  OR auth.uid() = follower_id 
+  OR auth.uid() = following_id
+);

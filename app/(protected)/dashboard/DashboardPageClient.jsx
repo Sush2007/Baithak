@@ -33,11 +33,21 @@ const DashboardPageClient = () => {
   const [hasMore, setHasMore] = useState(true);
   const [pageOffset, setPageOffset] = useState(0);
   const POSTS_PER_PAGE = 10;
+  
+  const parentRef = React.useRef(null);
+  const [parentOffset, setParentOffset] = useState(0);
+
+  useEffect(() => {
+    if (parentRef.current) {
+      setParentOffset(parentRef.current.getBoundingClientRect().top + window.scrollY);
+    }
+  }, [posts.length, activeTab, activeTagFilter]);
 
   const virtualizer = useWindowVirtualizer({
     count: posts.length,
-    estimateSize: () => 200, // Estimated height of a PostCard
+    estimateSize: () => 500, // Better estimated height for a PostCard on mobile/desktop
     overscan: 5,
+    scrollMargin: parentOffset,
   });
 
   const scrollRef = React.useRef(null);
@@ -240,6 +250,7 @@ const DashboardPageClient = () => {
         ) : (
           <>
             <div 
+              ref={parentRef}
               style={{ 
                 height: `${virtualizer.getTotalSize()}px`, 
                 width: '100%', 
