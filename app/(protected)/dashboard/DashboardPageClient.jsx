@@ -12,7 +12,7 @@ import { useRouter } from 'next/navigation';
 import { supabase } from '../../../lib/supabaseClient';
 import { useAuth } from '../../../context/AuthContext';
 
-const TABS = ['For You', 'Trending', 'Unanswered', 'Solved'];
+const TABS = ['For You', 'Unanswered', 'Solved'];
 
 
 

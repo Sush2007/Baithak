@@ -3,7 +3,7 @@ import { Resend } from 'resend';
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+const resend = new Resend(process.env.RESEND_API_KEY || 're_dummy_key_for_build');
 
 export async function POST(request) {
   try {
