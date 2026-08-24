@@ -18,6 +18,9 @@ export default function HonorDashboard() {
     discussionsRaised: 0,
   });
   const [loading, setLoading] = useState(true);
+  const [showRedeem, setShowRedeem] = useState(false);
+  const [upiId, setUpiId] = useState('');
+  const [redeemStatus, setRedeemStatus] = useState(''); // 'idle', 'submitting', 'success', 'error'
 
   useEffect(() => {
     if (!user) return;
@@ -76,6 +79,27 @@ export default function HonorDashboard() {
       </div>
     );
   }
+
+  const handleRedeem = async () => {
+    if (!upiId.trim()) return;
+    setRedeemStatus('submitting');
+    
+    try {
+      const { error } = await supabase.from('redemption_requests').insert({
+        user_id: user.id,
+        upi_id: upiId.trim(),
+        honor_points: profileData.lifetime_honor
+      });
+
+      if (error) throw error;
+      setRedeemStatus('success');
+    } catch (err) {
+      console.error(err);
+      setRedeemStatus('error');
+    }
+  };
+
+  const canRedeem = lifetimeHP >= 5000;
 
   const lifetimeHP = profileData?.lifetime_honor || 0;
   const currentBadge = getCurrentHonorBadge(lifetimeHP);
@@ -159,6 +183,52 @@ export default function HonorDashboard() {
             ) : (
               <div className="w-full max-w-sm h-2 bg-gradient-to-r from-accent-yellow/20 via-accent-yellow/50 to-accent-yellow/20 rounded-full border border-accent-yellow/20"></div>
             )}
+            
+            {/* Redeem Section */}
+            <div className="mt-6 w-full max-w-sm mx-auto sm:mx-0">
+              {redeemStatus === 'success' ? (
+                <div className="bg-green-500/10 border border-green-500/20 text-green-400 p-3 rounded-xl text-center text-sm font-medium">
+                  Your request has been sent, cash reward is being processed.
+                </div>
+              ) : (
+                <div className="flex flex-col space-y-3">
+                  <button
+                    onClick={() => setShowRedeem(!showRedeem)}
+                    disabled={!canRedeem}
+                    className={`w-full py-2.5 rounded-xl font-bold text-sm transition-colors ${
+                      canRedeem 
+                        ? 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white shadow-lg shadow-blue-500/20' 
+                        : 'bg-white/5 text-white/30 cursor-not-allowed'
+                    }`}
+                  >
+                    {canRedeem ? 'Redeem Points' : 'Reach 5,000 pts to Redeem'}
+                  </button>
+
+                  {showRedeem && canRedeem && (
+                    <div className="flex flex-col gap-2 mt-2 p-3 bg-black/20 rounded-xl border border-white/5 animate-in fade-in slide-in-from-top-2">
+                      <label className="text-xs text-white/60 font-medium px-1 text-left">Enter UPI ID</label>
+                      <input 
+                        type="text" 
+                        value={upiId}
+                        onChange={(e) => setUpiId(e.target.value)}
+                        placeholder="e.g. name@upi" 
+                        className="bg-[#1A1B22] border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:border-blue-500 focus:outline-none transition-colors"
+                      />
+                      {redeemStatus === 'error' && (
+                        <span className="text-red-400 text-xs px-1 text-left">Something went wrong. Please try again.</span>
+                      )}
+                      <button 
+                        onClick={handleRedeem}
+                        disabled={!upiId.trim() || redeemStatus === 'submitting'}
+                        className="w-full mt-1 bg-white hover:bg-white/90 text-black py-2 rounded-lg font-bold text-sm transition-colors disabled:opacity-50"
+                      >
+                        {redeemStatus === 'submitting' ? 'Submitting...' : 'Confirm Redemption'}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </section>

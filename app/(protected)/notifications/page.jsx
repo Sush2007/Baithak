@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { CheckCheck, MessageSquare, Award, AtSign, ShieldCheck, AlertCircle, Heart, Star } from 'lucide-react';
+import { CheckCheck, MessageSquare, Award, AtSign, ShieldCheck, AlertCircle, Heart, Star, Users } from 'lucide-react';
 import { supabase } from '../../../lib/supabaseClient';
 import { useAuth } from '../../../context/AuthContext';
 import { useRouter } from 'next/navigation';
@@ -120,12 +120,63 @@ export default function NotificationsPage() {
     }
   };
 
+  const handleAcceptConnection = async (e, notification) => {
+    e.stopPropagation();
+    try {
+      await supabase
+        .from('connections')
+        .update({ status: 'accepted' })
+        .eq('follower_id', notification.actor?.id || notification.actor_id)
+        .eq('following_id', user.id);
+        
+        // Notify the requester that their request was accepted
+        await supabase
+          .from('notifications')
+          .insert({ 
+            user_id: notification.actor?.id || notification.actor_id, 
+            actor_id: user.id, 
+            type: 'connection_accepted' 
+          });
+        
+        markAsRead(notification.id, notification.is_read);
+      // Remove or update the notification visually if you prefer
+      alert('Connection request accepted!');
+      fetchNotifications();
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleDeclineConnection = async (e, notification) => {
+    e.stopPropagation();
+    try {
+      await supabase
+        .from('connections')
+        .delete()
+        .eq('follower_id', notification.actor?.id || notification.actor_id)
+        .eq('following_id', user.id);
+      
+      markAsRead(notification.id, notification.is_read);
+      fetchNotifications();
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   const getIconConfig = (type) => {
     switch(type) {
       case 'comment': return { icon: MessageSquare, color: 'text-blue-400', bg: 'bg-blue-400/10' };
       case 'like': return { icon: Heart, color: 'text-red-400', bg: 'bg-red-400/10' };
       case 'post': return { icon: Star, color: 'text-purple-400', bg: 'bg-purple-400/10' };
       case 'system': return { icon: AlertCircle, color: 'text-red-500', bg: 'bg-red-500/10' };
+      case 'connection_accepted':
+          return (
+            <p className="text-sm font-medium text-white/90">
+              {actorName} <span className="font-normal text-white/60">accepted your connection request.</span>
+            </p>
+          );
+        case 'connection_request': return { icon: Users, color: 'text-green-400', bg: 'bg-green-400/10' };
+        case 'connection_accepted': return { icon: Users, color: 'text-blue-400', bg: 'bg-blue-400/10' };
       default: return { icon: Award, color: 'text-accent-yellow', bg: 'bg-accent-yellow/10' };
     }
   };
@@ -156,6 +207,28 @@ export default function NotificationsPage() {
               {actorName} <span className="font-normal text-white/60">liked your post</span> <span className="text-blue-400">{notification.post?.title}</span>
             </p>
           </>
+        );
+      case 'connection_request':
+        return (
+          <div className="w-full">
+            <p className="text-sm font-medium text-white/90 mb-3">
+              {actorName} <span className="font-normal text-white/60">sent you a connection request.</span>
+            </p>
+            <div className="flex items-center gap-3">
+              <button 
+                onClick={(e) => handleAcceptConnection(e, notification)}
+                className="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-lg transition-colors"
+              >
+                Accept
+              </button>
+              <button 
+                onClick={(e) => handleDeclineConnection(e, notification)}
+                className="px-4 py-1.5 bg-transparent border border-white/20 text-white/70 hover:text-red-400 hover:border-red-400 text-xs font-semibold rounded-lg transition-colors"
+              >
+                Decline
+              </button>
+            </div>
+          </div>
         );
       default:
         return <p className="text-sm font-medium text-white/90">New notification received.</p>;

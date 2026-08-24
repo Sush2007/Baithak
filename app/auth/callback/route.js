@@ -8,6 +8,7 @@ export async function GET(request) {
   const next = searchParams.get('next') ?? '/dashboard';
 
   let authError = null;
+  let response = NextResponse.redirect(`${origin}${next}`); // Default response
 
   if (code) {
     const cookieStore = await cookies();
@@ -16,13 +17,16 @@ export async function GET(request) {
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
       {
         cookies: {
-                    getAll() {
+          getAll() {
             return cookieStore.getAll();
           },
           setAll(cookiesToSet) {
             try {
               cookiesToSet.forEach(({ name, value, options }) => {
+                // Set on the request/cookieStore
                 cookieStore.set(name, value, options);
+                // ALSO set explicitly on the outgoing redirect response to guarantee it works!
+                response.cookies.set({ name, value, ...options });
               });
             } catch (err) {
               console.warn('[auth/callback] Cookie set error:', err);
@@ -39,16 +43,19 @@ export async function GET(request) {
       const forwardedHost = request.headers.get('x-forwarded-host');
       const isLocalEnv = process.env.NODE_ENV === 'development';
       
-      if (isLocalEnv) {
-        return NextResponse.redirect(`${origin}${next}`);
-      } else if (forwardedHost) {
-        return NextResponse.redirect(`https://${forwardedHost}${next}`);
-      } else {
-        return NextResponse.redirect(`${origin}${next}`);
+      // Update the redirect URL if needed based on forwarded host
+      if (!isLocalEnv && forwardedHost) {
+        response = NextResponse.redirect(`https://${forwardedHost}${next}`);
+        // Copy cookies over to the new response object
+        cookieStore.getAll().forEach((cookie) => {
+          response.cookies.set({ name: cookie.name, value: cookie.value });
+        });
       }
+      
+      return response;
     }
   }
 
   // Return to homepage on error
-  return NextResponse.redirect(`${origin}/?error=auth&message=${encodeURIComponent(authError?.message || 'unknown')}`);
+  return NextResponse.redirect(`${origin}/?error=auth&message=${encodeURIComponent(authError?.message || 'missing_code')}`);
 }
