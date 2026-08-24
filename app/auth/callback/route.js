@@ -7,9 +7,6 @@ export async function GET(request) {
   const code = searchParams.get('code');
   const next = searchParams.get('next') ?? '/dashboard';
 
-  let authError = null;
-  let response = NextResponse.redirect(`${origin}${next}`); // Default response
-
   if (code) {
     const cookieStore = await cookies();
     const supabase = createServerClient(
@@ -23,13 +20,10 @@ export async function GET(request) {
           setAll(cookiesToSet) {
             try {
               cookiesToSet.forEach(({ name, value, options }) => {
-                // Set on the request/cookieStore
                 cookieStore.set(name, value, options);
-                // ALSO set explicitly on the outgoing redirect response to guarantee it works!
-                response.cookies.set({ name, value, ...options });
               });
-            } catch (err) {
-              console.warn('[auth/callback] Cookie set error:', err);
+            } catch (error) {
+              console.warn('[auth/callback] Cookie set error:', error);
             }
           },
         },
@@ -37,25 +31,32 @@ export async function GET(request) {
     );
     
     const { error } = await supabase.auth.exchangeCodeForSession(code);
-    authError = error;
     
     if (!error) {
       const forwardedHost = request.headers.get('x-forwarded-host');
       const isLocalEnv = process.env.NODE_ENV === 'development';
       
-      // Update the redirect URL if needed based on forwarded host
-      if (!isLocalEnv && forwardedHost) {
+      let response;
+      if (isLocalEnv) {
+        response = NextResponse.redirect(`${origin}${next}`);
+      } else if (forwardedHost) {
         response = NextResponse.redirect(`https://${forwardedHost}${next}`);
-        // Copy cookies over to the new response object
-        cookieStore.getAll().forEach((cookie) => {
-          response.cookies.set({ name: cookie.name, value: cookie.value });
-        });
+      } else {
+        response = NextResponse.redirect(`${origin}${next}`);
       }
       
+      // EXPLICITLY copy all cookies from the store to the response to guarantee they are set in Next 15
+      cookieStore.getAll().forEach((cookie) => {
+        response.cookies.set(cookie.name, cookie.value, cookie);
+      });
+      
       return response;
+    } else {
+      console.error('[auth/callback] Error exchanging code for session:', error);
+      return NextResponse.redirect(`${origin}/?error=auth&message=${encodeURIComponent(error.message)}`);
     }
   }
 
-  // Return to homepage on error
-  return NextResponse.redirect(`${origin}/?error=auth&message=${encodeURIComponent(authError?.message || 'missing_code')}`);
+  // Return to homepage if no code
+  return NextResponse.redirect(`${origin}/?error=auth&message=missing_code`);
 }

@@ -197,8 +197,9 @@ export default function SettingsPage() {
           display_name: 'Deleted User',
           username: `deleted_${Date.now()}`,
           bio: '',
-          avatar_url: null
-        }).eq('id', user.id);
+          avatar_url: null,
+            setup_completed: false
+          }).eq('id', user.id);
       }
       await supabase.auth.signOut();
       window.location.href = '/';
