@@ -449,11 +449,14 @@ const PostCard = ({ post, onReport, onQuickProfile, onDelete }) => {
             <div className="mt-2 flex items-center justify-between">
               <div className="flex gap-3">
                 <button 
-                  onClick={(e) => { e.stopPropagation(); handleUpvoteReply(reply.id, hasUpvoted); }}
-                  className={`flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded transition-colors ${hasUpvoted ? 'text-green-500 bg-green-500/10' : 'text-[#8E909E] hover:text-white hover:bg-white/5'}`}
-                >
-                  ⇧ {upvotesCount}
-                </button>
+                    onClick={(e) => { e.stopPropagation(); handleUpvoteReply(reply.id, hasUpvoted); }}
+                    className={`flex items-center gap-1.5 text-[11px] font-semibold transition-colors group/btn ${hasUpvoted ? 'text-green-400' : 'text-[#8E909E] hover:text-green-400'}`}
+                  >
+                    <div className={`p-1 rounded-full transition-colors flex items-center justify-center ${hasUpvoted ? 'bg-green-400/20' : 'group-hover/btn:bg-green-400/10'}`}>
+                      <ArrowUpCircle size={15} className={hasUpvoted ? 'fill-green-400/20' : ''} />
+                    </div>
+                    <span>{upvotesCount}</span>
+                  </button>
                 {!isNested && !post.is_solved && (
                   <button 
                     onClick={(e) => { e.stopPropagation(); setReplyingToId(reply.id); setTimeout(() => document.getElementById('reply-input')?.focus(), 50); }}
@@ -467,7 +470,7 @@ const PostCard = ({ post, onReport, onQuickProfile, onDelete }) => {
                 {user?.id !== reply.author_id && (
                   <button
                     onClick={(e) => { e.stopPropagation(); onReport && onReport({ ...reply, type: 'comment' }); }}
-                    className="text-[11px] font-semibold text-red-400 hover:text-red-300 hover:bg-red-500/10 px-2.5 py-1 rounded transition-colors flex items-center gap-1 opacity-0 group-hover:opacity-100"
+                    className="text-[11px] font-semibold text-red-400/70 hover:text-red-400 hover:bg-red-500/10 px-2.5 py-1 rounded transition-colors flex items-center gap-1"
                   >
                     Report
                   </button>
@@ -731,7 +734,16 @@ const PostCard = ({ post, onReport, onQuickProfile, onDelete }) => {
                         }}
                       />
                       <div className="flex justify-between items-center border-t border-white/10 pt-2 mt-2 opacity-0 group-focus-within:opacity-100 transition-opacity">
-                         <div className="text-xs text-[#8E909E]">{replyingToId ? `Replying to comment...` : `Replying to @${post.profiles?.username || 'user'}`}</div>
+                         <div className="text-xs text-[#8E909E]">
+                             {replyingToId ? (
+                               <span className="flex items-center gap-2">
+                                 Replying to @{replies.find(r => r.id === replyingToId)?.profiles?.username || 'user'}
+                                 <button onClick={() => setReplyingToId(null)} className="hover:text-white bg-white/10 rounded-full p-0.5"><X size={12} /></button>
+                               </span>
+                             ) : (
+                               `Replying to @${post.profiles?.username || 'user'}`
+                             )}
+                           </div>
                          <button 
                            onClick={submitReply}
                            disabled={!replyContent.trim() || isSubmitting}

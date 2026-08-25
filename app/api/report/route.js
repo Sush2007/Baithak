@@ -87,7 +87,9 @@ export async function POST(request) {
         process.env.SUPABASE_SERVICE_ROLE_KEY,
         { cookies: { getAll() { return []; }, setAll() {} } }
       );
-      await adminClient.from(targetTable).update({ status: 'reported' }).eq('id', targetId);
+      if (targetTable === 'posts') {
+        await adminClient.from('posts').update({ status: 'reported' }).eq('id', targetId);
+      }
     }
 
     const dashboardLink = `https://supabase.com/dashboard/project/meezxcykzndoopudrydv/editor/${targetTable}?filter=id%3Aeq%3A${targetId}`;
