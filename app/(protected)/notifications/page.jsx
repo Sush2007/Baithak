@@ -138,10 +138,10 @@ export default function NotificationsPage() {
             type: 'connection_accepted' 
           });
         
-        markAsRead(notification.id, notification.is_read);
-      // Remove or update the notification visually if you prefer
-      alert('Connection request accepted!');
-      fetchNotifications();
+        await supabase.from('notifications').update({ type: 'connection_accepted_by_me' }).eq('id', notification.id);
+        
+        // alert('Connection request accepted!');
+        fetchNotifications();
     } catch (err) {
       console.error(err);
     }
@@ -156,8 +156,8 @@ export default function NotificationsPage() {
         .eq('follower_id', notification.actor?.id || notification.actor_id)
         .eq('following_id', user.id);
       
-      markAsRead(notification.id, notification.is_read);
-      fetchNotifications();
+      await supabase.from('notifications').delete().eq('id', notification.id);
+        fetchNotifications();
     } catch (err) {
       console.error(err);
     }
@@ -175,8 +175,15 @@ export default function NotificationsPage() {
               {actorName} <span className="font-normal text-white/60">accepted your connection request.</span>
             </p>
           );
+        case 'connection_accepted_by_me':
+          return (
+            <p className="text-sm font-medium text-white/90">
+              You accepted <span className="text-blue-400">{actorName}'s</span> <span className="font-normal text-white/60">connection request.</span>
+            </p>
+          );
         case 'connection_request': return { icon: Users, color: 'text-green-400', bg: 'bg-green-400/10' };
         case 'connection_accepted': return { icon: Users, color: 'text-blue-400', bg: 'bg-blue-400/10' };
+      case 'connection_accepted_by_me': return { icon: Users, color: 'text-green-400', bg: 'bg-green-400/10' };
       default: return { icon: Award, color: 'text-accent-yellow', bg: 'bg-accent-yellow/10' };
     }
   };

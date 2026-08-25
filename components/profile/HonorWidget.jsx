@@ -94,16 +94,24 @@ export default function HonorWidget({ isOwnProfile = false, profileData }) {
           ) : (
             <div className="flex flex-col space-y-3">
               <button
-                onClick={() => setShowRedeem(!showRedeem)}
-                disabled={!canRedeem}
-                className={`w-full py-2.5 rounded-xl font-bold text-sm transition-colors ${
-                  canRedeem 
-                    ? 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white shadow-lg shadow-blue-500/20' 
-                    : 'bg-white/5 text-white/30 cursor-not-allowed'
-                }`}
-              >
-                {canRedeem ? 'Redeem Points' : 'Reach 5,000 pts to Redeem'}
-              </button>
+                  onClick={() => canRedeem && setShowRedeem(!showRedeem)}
+                  disabled={!canRedeem}
+                  className={`relative w-full overflow-hidden py-2.5 rounded-xl font-bold text-sm transition-all duration-300 ${
+                    canRedeem 
+                      ? 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white shadow-lg shadow-blue-500/20 cursor-pointer' 
+                      : 'bg-[#1A1B22] border border-white/5 text-white/50 cursor-not-allowed'
+                  }`}
+                >
+                  {!canRedeem && (
+                    <div 
+                      className="absolute inset-y-0 left-0 bg-blue-500/20 transition-all duration-1000 ease-out"
+                      style={{ width: `${Math.min(100, (${profileKey} / 5000) * 100)}%` }}
+                    />
+                  )}
+                  <span className="relative z-10 flex items-center justify-center gap-2">
+                    {canRedeem ? 'Redeem Points' : `Reach 5,000 pts to Redeem (${${profileKey}}/5000)`}
+                  </span>
+                </button>
 
               {showRedeem && canRedeem && (
                 <div className="flex flex-col gap-2 mt-2 p-3 bg-black/20 rounded-xl border border-white/5 animate-in fade-in slide-in-from-top-2">

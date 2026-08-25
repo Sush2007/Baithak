@@ -1,3 +1,4 @@
+import { useRouter } from 'next/navigation';
 "use client";
 
 import React, { useState, useEffect, useRef } from 'react';
@@ -25,6 +26,7 @@ const timeAgo = (dateStr) => {
 
 const PostCard = ({ post, onReport, onQuickProfile, onDelete }) => {
   const { user, profile } = useAuth();
+  const router = useRouter();
   const [openDropdownId, setOpenDropdownId] = useState(false);
   const [isLiked, setIsLiked] = useState(false);
   const [likesCount, setLikesCount] = useState(post.likes?.[0]?.count || 0);
@@ -264,11 +266,11 @@ const PostCard = ({ post, onReport, onQuickProfile, onDelete }) => {
       const modRes = await fetch('/api/moderate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: replyContent })
+        body: JSON.stringify({ title: 'Comment', content: replyContent })
       });
       if (modRes.ok) {
         const modData = await modRes.json();
-        if (!modData.approved) {
+        if (modData.isSafe === false) {
           alert(`Your comment violates our community guidelines (Flagged for: ${modData.reason}). Please revise it.`);
           setIsSubmitting(false);
           return;
@@ -524,6 +526,7 @@ const PostCard = ({ post, onReport, onQuickProfile, onDelete }) => {
         <div className="flex items-center gap-3">
           <div 
             onClick={(e) => { e.stopPropagation(); onQuickProfile && onQuickProfile(post.author_id); }}
+              onMouseEnter={() => router.prefetch(`/profile/${post.author_id}`)}
             className="relative w-10 h-10 rounded-full overflow-hidden shrink-0 cursor-pointer border border-white/10 hover:border-white/30 transition-all"
           >
             {post.profiles?.avatar_url ? (
@@ -536,6 +539,7 @@ const PostCard = ({ post, onReport, onQuickProfile, onDelete }) => {
             <div className="flex items-center gap-1.5 flex-wrap">
               <span 
                 onClick={(e) => { e.stopPropagation(); onQuickProfile && onQuickProfile(post.author_id); }}
+              onMouseEnter={() => router.prefetch(`/profile/${post.author_id}`)}
                 className="font-bold text-[15px] text-white hover:underline cursor-pointer"
               >
                 {post.profiles?.display_name || 'Anonymous'}

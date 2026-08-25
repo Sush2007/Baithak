@@ -1,3 +1,4 @@
+import { feedCache } from '../../../lib/cache';
 "use client";
 
 import React, { useState, useEffect } from 'react';
@@ -131,8 +132,18 @@ const DashboardPageClient = () => {
     if (!hasMore && !isInitial) return;
     
     try {
-      if (isInitial) setLoading(true);
-      else setLoadingMore(true);
+      if (isInitial) {
+        const cached = feedCache.get(`${activeTab}-${activeTagFilter}`);
+        if (cached) {
+          setPosts(cached);
+          setLoading(false);
+          // fetch silently in background to validate
+        } else {
+          setLoading(true);
+        }
+      } else {
+        setLoadingMore(true);
+      }
 
       const { data, error } = await supabase.rpc('get_feed_posts', {
         p_user_id: user?.id || null,

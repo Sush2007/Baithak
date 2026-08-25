@@ -9,12 +9,15 @@ import { useAuth } from '../../../../context/AuthContext';
 import PostCard from '../../../../components/post/PostCard';
 import HonorWidget from '../../../../components/profile/HonorWidget';
 
+const TABS = ['Discussions', 'Solved Discussions', 'Best Replies'];
+
 export default function UserProfilePage() {
   const { id } = useParams();
   const router = useRouter();
   const { user } = useAuth();
   
   const [profile, setProfile] = useState(null);
+  const [activeTab, setActiveTab] = useState('Discussions');
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
   
@@ -48,19 +51,7 @@ export default function UserProfilePage() {
       if (profileError) throw profileError;
       setProfile(profileData);
 
-      // Fetch Posts
-      const { data: postsData } = await supabase
-        .from('posts')
-        .select(`
-          *, 
-          profiles!posts_author_id_fkey(username, display_name, avatar_url),
-          likes(count),
-          comments(count)
-        `)
-        .eq('author_id', id)
-        .order('created_at', { ascending: false });
-        
-      setPosts(postsData || []);
+      // Removed initial post fetch, now handled by activeTab effect
 
       // Fetch Connection Count (Accepted)
       const { count: acceptedCount } = await supabase
@@ -96,6 +87,52 @@ export default function UserProfilePage() {
       setLoading(false);
     }
   };
+
+  // Fetch Items when activeTab changes
+  useEffect(() => {
+    async function fetchItems() {
+      if (!id) return;
+      try {
+        let data = [];
+        if (activeTab === 'Discussions') {
+          const { data: postsData } = await supabase
+            .from('posts')
+            .select('*, profiles!posts_author_id_fkey(display_name, username, avatar_url), likes(count), comments(count)')
+            .eq('author_id', id)
+            .order('created_at', { ascending: false });
+          data = postsData || [];
+        } else if (activeTab === 'Solved Discussions') {
+          const { data: postsData } = await supabase
+            .from('posts')
+            .select('*, profiles!posts_author_id_fkey(display_name, username, avatar_url), likes(count), comments(count)')
+            .eq('author_id', id)
+            .eq('is_solved', true)
+            .order('created_at', { ascending: false });
+          data = postsData || [];
+        } else if (activeTab === 'Best Replies') {
+          const { data: commentsData } = await supabase
+            .from('comments')
+            .select('post_id')
+            .eq('author_id', id)
+            .eq('is_best_answer', true);
+            
+          if (commentsData && commentsData.length > 0) {
+            const postIds = commentsData.map(c => c.post_id);
+            const { data: postsData } = await supabase
+              .from('posts')
+              .select('*, profiles!posts_author_id_fkey(display_name, username, avatar_url), likes(count), comments(count)')
+              .in('id', postIds)
+              .order('created_at', { ascending: false });
+            data = postsData || [];
+          }
+        }
+        setPosts(data);
+      } catch (err) {
+        console.error('Error fetching items:', err);
+      }
+    }
+    fetchItems();
+  }, [activeTab, id]);
 
   const handleConnect = async () => {
     if (!user || connecting) return;
@@ -252,8 +289,25 @@ export default function UserProfilePage() {
         </div>
       </div>
 
+      {/* Tabs */}
+      <div className="flex overflow-x-auto scrollbar-hide gap-8 border-b border-white/5 mb-6 px-4">
+        {TABS.map(tab => (
+          <button
+            key={tab}
+            onClick={() => setActiveTab(tab)}
+            className={`pb-4 text-sm font-medium transition-colors whitespace-nowrap relative ${
+              activeTab === tab ? 'text-white' : 'text-white/50 hover:text-white/80'
+            }`}
+          >
+            {tab}
+            {activeTab === tab && (
+              <div className="absolute bottom-0 left-0 w-full h-0.5 bg-blue-500 rounded-t-full" />
+            )}
+          </button>
+        ))}
+      </div>
+
       {/* User's Posts */}
-      <h3 className="text-lg font-bold text-white mb-4 px-2">Discussions</h3>
       <div className="space-y-4">
         {posts.length > 0 ? (
           posts.map(post => (
@@ -265,8 +319,12 @@ export default function UserProfilePage() {
             />
           ))
         ) : (
-          <div className="text-center py-10 bg-[#1A1B22] border border-white/5 rounded-2xl">
-            <p className="text-[#8E909E]">No discussions started yet.</p>
+          <div className="text-center py-10 bg-[#1A1B22] border border-white/5 rounded-2xl mx-4">
+            <p className="text-[#8E909E]">
+              {activeTab === 'Discussions' && 'No discussions started yet.'}
+              {activeTab === 'Solved Discussions' && 'No solved discussions yet.'}
+              {activeTab === 'Best Replies' && 'No best replies earned yet.'}
+            </p>
           </div>
         )}
       </div>

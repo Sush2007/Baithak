@@ -189,20 +189,17 @@ export default function SettingsPage() {
   };
 
   const handleDeleteAccount = async () => {
-    if (confirm("Are you sure you want to delete your account? This action cannot be undone.")) {
-      // In a real app with RLS, we'd need an admin function. 
-      // For now, clear their profile data and log them out to simulate deletion securely.
-      if (user) {
-        await supabase.from('profiles').update({
-          display_name: 'Deleted User',
-          username: `deleted_${Date.now()}`,
-          bio: '',
-          avatar_url: null,
-            setup_completed: false
-          }).eq('id', user.id);
+    if (confirm("Are you sure you want to permanently delete your account? This will erase all your posts, comments, and honor points. This action cannot be undone.")) {
+      try {
+        const res = await fetch('/api/user/delete', { method: 'POST' });
+        if (!res.ok) throw new Error('Failed to delete account');
+        
+        await supabase.auth.signOut();
+        window.location.href = '/';
+      } catch (err) {
+        alert('Could not delete account. Please try again.');
+        console.error(err);
       }
-      await supabase.auth.signOut();
-      window.location.href = '/';
     }
   };
 
