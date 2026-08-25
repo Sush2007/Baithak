@@ -58,9 +58,56 @@ export const metadata = {
 import { Toaster } from 'react-hot-toast';
 import { CSPostHogProvider } from './providers';
 
+// Advanced JSON-LD Schema for Generative Engine Optimization (GEO) & SEO
+const jsonLd = {
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "WebSite",
+      "name": "Baithak - VSSUT Discussion Forum",
+      "url": "https://baithakpe.com",
+      "description": "The official student-centered discussion platform for Veer Surendra Sai University of Technology (VSSUT), Burla. Ask questions, share study resources, and get campus updates.",
+      "potentialAction": {
+        "@type": "SearchAction",
+        "target": "https://baithakpe.com/search?q={search_term_string}",
+        "query-input": "required name=search_term_string"
+      }
+    },
+    {
+      "@type": "Organization",
+      "name": "Baithak",
+      "alternateName": ["VSSUT Baithak", "Baithak VSSUT"],
+      "url": "https://baithakpe.com",
+      "logo": "https://baithakpe.com/logo.png",
+      "description": "The premier student community and discussion forum for Veer Surendra Sai University of Technology (VSSUT).",
+      "parentOrganization": {
+        "@type": "CollegeOrUniversity",
+        "name": "Veer Surendra Sai University of Technology",
+        "alternateName": ["VSSUT", "UCE Burla"],
+        "location": {
+          "@type": "Place",
+          "address": {
+            "@type": "PostalAddress",
+            "addressLocality": "Burla",
+            "addressRegion": "Odisha",
+            "postalCode": "768018",
+            "addressCountry": "IN"
+          }
+        }
+      }
+    }
+  ]
+};
+
 export default function RootLayout({ children }) {
   return (
     <html lang="en" className={plusJakartaSans.className}>
+      <head>
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        />
+      </head>
       <body suppressHydrationWarning>
         <CSPostHogProvider>
           <AuthProvider>

@@ -3,8 +3,8 @@ export default function sitemap() {
     {
       url: 'https://baithakpe.com',
       lastModified: new Date(),
-      changeFrequency: 'always',
-      priority: 1,
+      changeFrequency: 'daily',
+      priority: 1.0,
     },
     {
       url: 'https://baithakpe.com/about',
