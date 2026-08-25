@@ -1,5 +1,6 @@
-import { feedCache } from '../../../lib/cache';
 "use client";
+import { feedCache } from '../../../lib/cache';
+
 
 import React, { useState, useEffect } from 'react';
 import { useWindowVirtualizer } from '@tanstack/react-virtual';
