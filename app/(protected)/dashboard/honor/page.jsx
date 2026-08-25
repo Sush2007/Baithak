@@ -204,11 +204,11 @@ export default function HonorDashboard() {
                   {!canRedeem && (
                     <div 
                       className="absolute inset-y-0 left-0 bg-blue-500/20 transition-all duration-1000 ease-out"
-                      style={{ width: `${Math.min(100, (${profileKey} / 5000) * 100)}%` }}
+                      style={{ width: `${Math.min(100, (lifetimeHP / 5000) * 100)}%` }}
                     />
                   )}
                   <span className="relative z-10 flex items-center justify-center gap-2">
-                    {canRedeem ? 'Redeem Points' : `Reach 5,000 pts to Redeem (${${profileKey}}/5000)`}
+                    {canRedeem ? 'Redeem Points' : `Reach 5,000 pts to Redeem (${lifetimeHP}/5000)`}
                   </span>
                 </button>
 
