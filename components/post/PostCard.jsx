@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation';
 
 import React, { useState, useEffect, useRef } from 'react';
 import Image from 'next/image';
-import { MessageSquare, ArrowUpCircle, Eye, Share2, MoreHorizontal, Bookmark, Flag, Send, Trash2 } from 'lucide-react';
+import { MessageSquare, ArrowUpCircle, Eye, Share2, MoreHorizontal, Bookmark, Flag, Send, Trash2, X } from 'lucide-react';
 import { supabase } from '../../lib/supabaseClient';
 import { useAuth } from '../../context/AuthContext';
 import LinkPreview from './LinkPreview';
@@ -25,7 +25,7 @@ const timeAgo = (dateStr) => {
   return "just now";
 };
 
-const PostCard = ({ post, onReport, onQuickProfile, onDelete }) => {
+const PostCard = ({ post, onReport, onQuickProfile, onDelete, priority = false }) => {
   const { user, profile } = useAuth();
   const router = useRouter();
   const [openDropdownId, setOpenDropdownId] = useState(false);
@@ -564,7 +564,7 @@ const PostCard = ({ post, onReport, onQuickProfile, onDelete }) => {
             className="relative w-10 h-10 rounded-full overflow-hidden shrink-0 cursor-pointer border border-white/10 hover:border-white/30 transition-all"
           >
             {post.profiles?.avatar_url ? (
-              <Image src={post.profiles.avatar_url} alt={post.profiles.display_name} fill className="object-cover" />
+              <Image src={post.profiles.avatar_url} alt={post.profiles.display_name} fill className="object-cover" priority={priority} />
             ) : (
               <div className="w-full h-full bg-gradient-to-tr from-[#8A2387] to-[#F27121] flex items-center justify-center text-sm">👤</div>
             )}

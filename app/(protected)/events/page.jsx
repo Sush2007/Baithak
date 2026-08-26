@@ -1,5 +1,14 @@
 import React from 'react';
 
+export const metadata = {
+  title: 'Campus Events',
+  description: 'Discover VSSUT campus events — hackathons, seminars, club meetings, technical fests, and cultural events at Veer Surendra Sai University of Technology, Burla.',
+  robots: {
+    index: false,
+    follow: false,
+  },
+};
+
 export default function EventsPage() {
   return (
     <div className="max-w-3xl w-full mx-auto pb-20 md:pb-0">

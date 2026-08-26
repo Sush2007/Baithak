@@ -1,8 +1,7 @@
 "use client";
 import { feedCache } from '../../../lib/cache';
 
-
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useTransition, useCallback } from 'react';
 
 import Image from 'next/image';
 import { MessageSquare, ArrowUpCircle, Eye, Share2, MoreHorizontal, ChevronDown, Bookmark, Flag, AlertTriangle, X } from 'lucide-react';
@@ -16,26 +15,31 @@ import { useAuth } from '../../../context/AuthContext';
 
 const TABS = ['For You', 'Unanswered', 'Solved'];
 
-
-
 // Removed inline ReportModal
 
-const DashboardPageClient = () => {
+const DashboardPageClient = ({ initialPosts = [], initialTags = ['All'] }) => {
   const { user } = useAuth();
   const router = useRouter();
+
+  // useTransition: keeps UI responsive on tab/tag switches (fixes INP)
+  const [isPending, startTransition] = useTransition();
+
   const [activeTab, setActiveTab] = useState('For You');
   const [activeTagFilter, setActiveTagFilter] = useState('All');
-  const [dynamicTags, setDynamicTags] = useState(['All']);
+  // Seed tags from SSR data — no waiting for a separate client fetch
+  const [dynamicTags, setDynamicTags] = useState(initialTags);
   const [openDropdownId, setOpenDropdownId] = useState(null);
   const [reportModalPost, setReportModalPost] = useState(null);
   const [quickProfileUserId, setQuickProfileUserId] = useState(null);
-  const [posts, setPosts] = useState([]);
-  const [loading, setLoading] = useState(true);
+
+  // Seed posts from SSR data — eliminates loading flash on first paint
+  const [posts, setPosts] = useState(initialPosts);
+  // Only show skeleton if SSR gave us nothing (fallback path)
+  const [loading, setLoading] = useState(initialPosts.length === 0);
   const [loadingMore, setLoadingMore] = useState(false);
-  const [hasMore, setHasMore] = useState(true);
+  const [hasMore, setHasMore] = useState(initialPosts.length === 10);
   const [pageOffset, setPageOffset] = useState(0);
   const POSTS_PER_PAGE = 10;
-  
   
 
   const scrollRef = React.useRef(null);
@@ -57,10 +61,20 @@ const DashboardPageClient = () => {
   }, []);
 
   // When tab or tag filter changes, reset and fetch page 0
+  // Skip the initial mount for 'For You'/'All' since SSR already fetched that
+  const isFirstMount = React.useRef(true);
   useEffect(() => {
-    setPosts([]);
-    setPageOffset(0);
-    setHasMore(true);
+    if (isFirstMount.current && activeTab === 'For You' && activeTagFilter === 'All' && initialPosts.length > 0) {
+      isFirstMount.current = false;
+      return; // skip — SSR data already loaded
+    }
+    isFirstMount.current = false;
+
+    startTransition(() => {
+      setPosts([]);
+      setPageOffset(0);
+      setHasMore(true);
+    });
     fetchPosts(0, true);
   }, [activeTab, activeTagFilter]);
 
@@ -158,9 +172,11 @@ const DashboardPageClient = () => {
 
       if (isInitial) {
         setPosts(formattedPosts);
+        feedCache.set(`${activeTab}-${activeTagFilter}`, formattedPosts);
         
         // Only fetch all tags once on initial load (for the tag filter UI)
-        if (activeTagFilter === 'All') {
+        // Skip if we already have tags from SSR
+        if (activeTagFilter === 'All' && dynamicTags.length <= 1) {
            const { data: allTagsData } = await supabase.from('posts').select('tags');
            const tagsSet = new Set();
            allTagsData?.forEach(p => {
@@ -172,9 +188,6 @@ const DashboardPageClient = () => {
         }
       } else {
         setPosts(prev => [...prev, ...formattedPosts]);
-        if (isInitial && formattedPosts.length > 0) {
-          feedCache.set(`${activeTab}-${activeTagFilter}`, formattedPosts);
-        }
       }
       
       setHasMore(newPosts.length === POSTS_PER_PAGE);
@@ -203,8 +216,8 @@ const DashboardPageClient = () => {
           {TABS.map(tab => (
             <button
               key={tab}
-              onClick={() => setActiveTab(tab)}
-              className="flex-1 flex justify-center min-w-[100px] hover:bg-white/5 transition-colors"
+              onClick={() => startTransition(() => setActiveTab(tab))}
+              className={`flex-1 flex justify-center min-w-[100px] hover:bg-white/5 transition-colors ${isPending ? 'opacity-70' : ''}`}
             >
               <div className="relative py-4">
                 <span className={`text-[15px] font-bold ${activeTab === tab ? 'text-white' : 'text-[#8E909E]'}`}>
@@ -227,7 +240,7 @@ const DashboardPageClient = () => {
             {dynamicTags.map((tag) => (
               <button
                 key={tag}
-                onClick={() => setActiveTagFilter(tag)}
+                onClick={() => startTransition(() => setActiveTagFilter(tag))}
                 className={`whitespace-nowrap px-3.5 py-1.5 rounded-lg text-[13px] font-medium transition-colors ${
                   activeTagFilter === tag
                     ? 'bg-white text-black'
@@ -272,18 +285,17 @@ const DashboardPageClient = () => {
         ) : (
           <>
             <div className="space-y-4">
-              {posts.map((post) => {
-                return (
-                  <div key={post.id} className="pb-4">
-                    <PostCard 
-                      post={post} 
-                      onReport={setReportModalPost} 
-                      onQuickProfile={(id) => router.push(`/profile/${id}`)}
-                      onDelete={(deletedId) => setPosts(prev => prev.filter(p => p.id !== deletedId))}
-                    />
-                  </div>
-                );
-              })}
+              {posts.map((post, index) => (
+                <div key={post.id} className="pb-4">
+                  <PostCard
+                    post={post}
+                    priority={index === 0} // LCP fix: preload first post's image
+                    onReport={setReportModalPost}
+                    onQuickProfile={(id) => router.push(`/profile/${id}`)}
+                    onDelete={(deletedId) => setPosts(prev => prev.filter(p => p.id !== deletedId))}
+                  />
+                </div>
+              ))}
             </div>
             
             {loadingMore && (
