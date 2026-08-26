@@ -3,7 +3,7 @@ import { feedCache } from '../../../lib/cache';
 
 
 import React, { useState, useEffect } from 'react';
-import { useWindowVirtualizer } from '@tanstack/react-virtual';
+
 import Image from 'next/image';
 import { MessageSquare, ArrowUpCircle, Eye, Share2, MoreHorizontal, ChevronDown, Bookmark, Flag, AlertTriangle, X } from 'lucide-react';
 import dynamic from 'next/dynamic';
@@ -36,21 +36,7 @@ const DashboardPageClient = () => {
   const [pageOffset, setPageOffset] = useState(0);
   const POSTS_PER_PAGE = 10;
   
-  const parentRef = React.useRef(null);
-  const [parentOffset, setParentOffset] = useState(0);
-
-  useEffect(() => {
-    if (parentRef.current) {
-      setParentOffset(parentRef.current.getBoundingClientRect().top + window.scrollY);
-    }
-  }, [posts.length, activeTab, activeTagFilter]);
-
-  const virtualizer = useWindowVirtualizer({
-    count: posts.length,
-    estimateSize: () => 500, // Better estimated height for a PostCard on mobile/desktop
-    overscan: 5,
-    scrollMargin: parentOffset,
-  });
+  
 
   const scrollRef = React.useRef(null);
 
@@ -186,6 +172,9 @@ const DashboardPageClient = () => {
         }
       } else {
         setPosts(prev => [...prev, ...formattedPosts]);
+        if (isInitial && formattedPosts.length > 0) {
+          feedCache.set(`${activeTab}-${activeTagFilter}`, formattedPosts);
+        }
       }
       
       setHasMore(newPosts.length === POSTS_PER_PAGE);
@@ -282,30 +271,10 @@ const DashboardPageClient = () => {
           <div className="text-center p-8 text-white/50">No discussions found.</div>
         ) : (
           <>
-            <div 
-              ref={parentRef}
-              style={{ 
-                height: `${virtualizer.getTotalSize()}px`, 
-                width: '100%', 
-                position: 'relative' 
-              }}
-            >
-              {virtualizer.getVirtualItems().map((virtualItem) => {
-                const post = posts[virtualItem.index];
+            <div className="space-y-4">
+              {posts.map((post) => {
                 return (
-                  <div
-                    key={virtualItem.key}
-                    data-index={virtualItem.index}
-                    ref={virtualizer.measureElement}
-                    style={{
-                      position: 'absolute',
-                      top: 0,
-                      left: 0,
-                      width: '100%',
-                      transform: `translateY(${virtualItem.start}px)`,
-                      paddingBottom: '1rem',
-                    }}
-                  >
+                  <div key={post.id} className="pb-4">
                     <PostCard 
                       post={post} 
                       onReport={setReportModalPost} 

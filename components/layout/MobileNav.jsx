@@ -23,7 +23,7 @@ export default function MobileNav() {
   const { profile } = useAuth();
 
   return (
-    <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-[#0C0E14]/90 backdrop-blur-xl border-t border-white/5 pb-safe z-50">
+    <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-[#0C0E14]/80 backdrop-blur-2xl border-t border-white/5 pb-safe z-50 shadow-[0_-10px_40px_-15px_rgba(0,229,255,0.1)]">
       <div className="flex items-center justify-around px-2 py-3">
         {MOBILE_NAV_ITEMS.map((item) => {
           const isActive = pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href));

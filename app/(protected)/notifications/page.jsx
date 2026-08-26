@@ -169,18 +169,6 @@ export default function NotificationsPage() {
       case 'like': return { icon: Heart, color: 'text-red-400', bg: 'bg-red-400/10' };
       case 'post': return { icon: Star, color: 'text-purple-400', bg: 'bg-purple-400/10' };
       case 'system': return { icon: AlertCircle, color: 'text-red-500', bg: 'bg-red-500/10' };
-      case 'connection_accepted':
-          return (
-            <p className="text-sm font-medium text-white/90">
-              {actorName} <span className="font-normal text-white/60">accepted your connection request.</span>
-            </p>
-          );
-        case 'connection_accepted_by_me':
-          return (
-            <p className="text-sm font-medium text-white/90">
-              You accepted <span className="text-blue-400">{actorName}'s</span> <span className="font-normal text-white/60">connection request.</span>
-            </p>
-          );
         case 'connection_request': return { icon: Users, color: 'text-green-400', bg: 'bg-green-400/10' };
         case 'connection_accepted': return { icon: Users, color: 'text-blue-400', bg: 'bg-blue-400/10' };
       case 'connection_accepted_by_me': return { icon: Users, color: 'text-green-400', bg: 'bg-green-400/10' };
