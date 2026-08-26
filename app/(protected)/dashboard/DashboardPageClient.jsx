@@ -254,10 +254,31 @@ const DashboardPageClient = () => {
       {/* Feed Content */}
       <div className="mt-6">
         {loading ? (
-          <div className="flex justify-center p-8">
-             <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-          </div>
-        ) : posts.length === 0 ? (
+            <div className="space-y-6">
+              {[1, 2, 3].map((n) => (
+                <div key={n} className="bg-[#1A1B22] border-b border-white/5 sm:border sm:border-white/5 sm:rounded-2xl p-4 sm:p-5 shadow-lg shadow-black/20 animate-pulse">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="w-11 h-11 bg-white/10 rounded-full shrink-0"></div>
+                    <div className="space-y-2 flex-1">
+                      <div className="h-4 bg-white/10 rounded w-1/4"></div>
+                      <div className="h-3 bg-white/5 rounded w-1/3"></div>
+                    </div>
+                  </div>
+                  <div className="space-y-3">
+                    <div className="h-5 bg-white/10 rounded w-3/4"></div>
+                    <div className="h-4 bg-white/5 rounded w-full"></div>
+                    <div className="h-4 bg-white/5 rounded w-full"></div>
+                    <div className="h-4 bg-white/5 rounded w-5/6"></div>
+                  </div>
+                  <div className="flex gap-6 mt-6 pt-4 border-t border-white/5">
+                    <div className="w-12 h-4 bg-white/10 rounded"></div>
+                    <div className="w-12 h-4 bg-white/10 rounded"></div>
+                    <div className="w-12 h-4 bg-white/10 rounded"></div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : posts.length === 0 ? (
           <div className="text-center p-8 text-white/50">No discussions found.</div>
         ) : (
           <>

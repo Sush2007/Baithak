@@ -103,12 +103,15 @@ const LeftSidebar = () => {
       {/* Open a Discussion Button */}
       <div className="mt-auto pt-2">
         <button 
-          onClick={() => setIsModalOpen(true)}
-          className="w-full bg-[#003B95] hover:bg-[#002B73] text-white font-medium py-3.5 rounded-[12px] flex items-center justify-center gap-2 transition-all"
-        >
-          <PlusCircle size={18} />
-          <span className="text-[14px]">Open a Discussion</span>
-        </button>
+            onClick={() => setIsModalOpen(true)}
+            className="relative w-full overflow-hidden rounded-[12px] p-[2.5px] transition-transform hover:scale-[1.02] active:scale-[0.98] group shadow-[0_0_15px_rgba(0,82,255,0.3)]"
+          >
+            <span className="absolute inset-[-1000%] animate-[spin_4s_linear_infinite] bg-[conic-gradient(from_90deg_at_50%_50%,#0033A0_0%,#00E5FF_33%,#FFC300_66%,#0033A0_100%)] opacity-90 group-hover:opacity-100 transition-opacity duration-300"></span>
+            <div className="relative flex h-full w-full items-center justify-center gap-2 rounded-[10px] bg-[#0C0E14] py-3 text-[14px] font-bold text-white transition-colors hover:bg-black/40 backdrop-blur-xl">
+              <PlusCircle size={18} />
+              <span>Open a Discussion</span>
+            </div>
+          </button>
       </div>
 
       <OpenDiscussionModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />

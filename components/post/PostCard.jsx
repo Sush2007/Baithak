@@ -33,6 +33,9 @@ const PostCard = ({ post, onReport, onQuickProfile, onDelete }) => {
   const [likesCount, setLikesCount] = useState(post.likes?.[0]?.count || 0);
   const [isBookmarked, setIsBookmarked] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [showDoubleTapHeart, setShowDoubleTapHeart] = useState(false);
+  const isLongText = post.content?.length > 250 || post.content?.split('\n').length > 4;
   
   // Replies State
   const [showReplies, setShowReplies] = useState(false);
@@ -87,6 +90,13 @@ const PostCard = ({ post, onReport, onQuickProfile, onDelete }) => {
 
     const { data: bmData } = await supabase.from('bookmarks').select('post_id').eq('post_id', post.id).eq('user_id', user.id).maybeSingle();
     if (bmData) setIsBookmarked(true);
+  };
+
+  const handleDoubleClick = (e) => {
+    e.stopPropagation();
+    if (!isLiked) handleLike();
+    setShowDoubleTapHeart(true);
+    setTimeout(() => setShowDoubleTapHeart(false), 800);
   };
 
   const handleLike = () => {
@@ -518,9 +528,29 @@ const PostCard = ({ post, onReport, onQuickProfile, onDelete }) => {
   return (
     <article 
       ref={postRef} 
-      className={`bg-[#1A1B22] border border-white/5 rounded-2xl p-4 sm:p-5 hover:border-white/10 transition-all duration-300 cursor-pointer group relative overflow-hidden ${post.isOptimistic ? 'opacity-70 pointer-events-none' : 'opacity-100'}`}
+      onDoubleClick={handleDoubleClick}
+        className={`bg-[#1A1B22] border-b border-white/5 sm:border sm:rounded-2xl p-4 sm:p-5 hover:bg-[#1E1F27] transition-all duration-300 cursor-pointer group relative overflow-hidden shadow-lg shadow-black/20 ${post.isOptimistic ? 'opacity-70 pointer-events-none' : 'opacity-100'}`}
     >
-      {post.isOptimistic && (
+      <style jsx>{`
+          @keyframes popIn {
+            0% { transform: scale(0.5); opacity: 0; }
+            30% { transform: scale(1.2); opacity: 1; }
+            80% { transform: scale(1); opacity: 1; }
+            100% { transform: scale(0.8); opacity: 0; }
+          }
+          .animate-pop-in {
+            animation: popIn 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+          }
+        `}</style>
+        {showDoubleTapHeart && (
+          <div className="absolute inset-0 flex items-center justify-center z-50 pointer-events-none">
+            <ArrowUpCircle 
+              size={100} 
+              className="text-green-400 fill-green-400/40 animate-pop-in drop-shadow-[0_0_30px_rgba(74,222,128,0.5)]" 
+            />
+          </div>
+        )}
+        {post.isOptimistic && (
         <div className="absolute top-0 left-0 w-full h-1 bg-white/10 z-10">
           <div className="h-full bg-gradient-to-r from-[#0033A0] to-[#FFC300] w-1/3 animate-[slide_1s_ease-in-out_infinite]" />
         </div>
@@ -605,7 +635,12 @@ const PostCard = ({ post, onReport, onQuickProfile, onDelete }) => {
       {/* Post Content */}
       <div className="pl-0 sm:pl-[52px] space-y-3">
         <div className="flex items-center gap-2 flex-wrap">
-          {post.is_solved && (
+          {likesCount > 4 && (
+              <span className="bg-gradient-to-r from-red-500 to-orange-500 text-white text-[9px] font-bold px-2 py-0.5 rounded uppercase tracking-wider flex items-center gap-1 shadow-[0_0_8px_rgba(239,68,68,0.5)]">
+                🔥 Trending
+              </span>
+            )}
+            {post.is_solved && (
             <span className="bg-[#00E5FF]/20 text-[#00E5FF] border border-[#00E5FF]/30 text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wider flex items-center gap-1">
               ✓ Solved
             </span>
@@ -620,8 +655,9 @@ const PostCard = ({ post, onReport, onQuickProfile, onDelete }) => {
           ))}
         </div>
 
-        <h3 className="text-lg font-bold text-white leading-snug">{post.title}</h3>
-        <p className="text-[15px] text-white/80 leading-relaxed whitespace-pre-wrap">
+        <h3 className="text-[20px] font-extrabold text-white leading-tight mb-1">{post.title}</h3>
+        <div className={`relative ${!isExpanded && isLongText ? 'max-h-[120px] overflow-hidden' : ''}`}>
+            <p className="text-[15px] text-white/80 leading-relaxed whitespace-pre-wrap">
           {post.content?.split(/((?:https?:\/\/[^\s]+)|(?:#\w+))/g).map((part, i) => {
             if (part.match(/(https?:\/\/[^\s]+)/)) {
               return <a key={i} href={part} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()} className="text-blue-400 hover:underline">{part}</a>;
@@ -631,6 +667,19 @@ const PostCard = ({ post, onReport, onQuickProfile, onDelete }) => {
             return part;
           })}
         </p>
+            {!isExpanded && isLongText && (
+              <div className="absolute bottom-0 left-0 right-0 h-20 bg-gradient-to-t from-[#1A1B22] via-[#1A1B22]/80 to-transparent pointer-events-none flex items-end">
+              </div>
+            )}
+          </div>
+          {!isExpanded && isLongText && (
+            <button 
+              onClick={(e) => { e.stopPropagation(); setIsExpanded(true); }}
+              className="text-blue-400 text-[13px] font-bold hover:underline mt-1 opacity-80"
+            >
+              Read more
+            </button>
+          )}
 
         {post.content?.match(/(https?:\/\/[^\s]+)/) && (
           <LinkPreview url={post.content.match(/(https?:\/\/[^\s]+)/)[0]} />
@@ -650,7 +699,7 @@ const PostCard = ({ post, onReport, onQuickProfile, onDelete }) => {
         <div className="flex items-center justify-between sm:justify-start sm:gap-8 pt-3 border-t border-white/5 mt-4">
           <button 
             onClick={(e) => { e.stopPropagation(); handleLike(); }}
-            className={`flex items-center gap-2 text-xs font-medium transition-colors group/btn ${isLiked ? 'text-green-400' : 'text-white/50 hover:text-green-400'}`}
+            className={`flex items-center gap-2 text-xs font-medium transition-all duration-200 active:scale-75 group/btn ${isLiked ? 'text-green-400' : 'text-white/50 hover:text-green-400'}`}
           >
             <div className={`p-1.5 rounded-full transition-colors flex items-center justify-center ${isLiked ? 'bg-green-400/20' : 'group-hover/btn:bg-green-400/10'}`}>
               <ArrowUpCircle size={18} className={isLiked ? 'fill-green-400/20' : ''} />
@@ -668,7 +717,7 @@ const PostCard = ({ post, onReport, onQuickProfile, onDelete }) => {
           </button>
           <button 
             onClick={(e) => { e.stopPropagation(); handleBookmark(); }}
-            className={`flex items-center gap-2 text-xs font-medium transition-colors group/btn ${isBookmarked ? 'text-yellow-400' : 'text-white/50 hover:text-yellow-400'}`}
+            className={`flex items-center gap-2 text-xs font-medium transition-all duration-200 active:scale-75 group/btn ${isBookmarked ? 'text-yellow-400' : 'text-white/50 hover:text-yellow-400'}`}
           >
             <div className={`p-1.5 rounded-full transition-colors flex items-center justify-center ${isBookmarked ? 'bg-yellow-400/20' : 'group-hover/btn:bg-yellow-400/10'}`}>
               <Bookmark size={18} className={isBookmarked ? 'fill-yellow-400' : ''} />
@@ -678,7 +727,7 @@ const PostCard = ({ post, onReport, onQuickProfile, onDelete }) => {
             <div className="p-1.5 rounded-full group-hover/btn:bg-white/10 transition-colors flex items-center justify-center">
               <Eye size={18} />
             </div>
-            <span className="min-w-[20px] text-left">{localViewsCount.toLocaleString()}</span>
+            <span className="min-w-[20px] text-left">{localViewsCount.toLocaleString()} <span className="text-[10px] uppercase font-bold opacity-70">Views</span></span>
           </button>
           <button 
             onClick={(e) => { e.stopPropagation(); handleShare(); }}

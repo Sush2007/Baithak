@@ -6,6 +6,7 @@ import { Trophy } from 'lucide-react';
 import { supabase } from '../../lib/supabaseClient';
 import { getCurrentHonorBadge, getNextHonorBadge } from '../../lib/badges';
 import Link from 'next/link';
+import confetti from 'canvas-confetti';
 
 export default function HonorWidget({ isOwnProfile = false, profileData }) {
   const { profile: currentUserProfile } = useAuth();
@@ -40,6 +41,12 @@ export default function HonorWidget({ isOwnProfile = false, profileData }) {
 
       if (error) throw error;
       setRedeemStatus('success');
+      confetti({
+        particleCount: 150,
+        spread: 100,
+        origin: { y: 0.5 },
+        colors: ['#00E5FF', '#FF0055', '#FFCC00']
+      });
     } catch (err) {
       console.error(err);
       setRedeemStatus('error');
