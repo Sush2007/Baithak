@@ -7,6 +7,9 @@ import { ArrowLeft, Loader2, Link as LinkIcon, BadgeCheck, Users, Calendar } fro
 import { supabase } from '../../../../lib/supabaseClient';
 import { useAuth } from '../../../../context/AuthContext';
 import PostCard from '../../../../components/post/PostCard';
+import HonorWidget from '../../../../components/profile/HonorWidget';
+
+const TABS = ['Discussions', 'Solved Discussions', 'Best Replies'];
 
 export default function UserProfilePage() {
   const { id } = useParams();
@@ -14,6 +17,7 @@ export default function UserProfilePage() {
   const { user } = useAuth();
   
   const [profile, setProfile] = useState(null);
+  const [activeTab, setActiveTab] = useState('Discussions');
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
   
@@ -47,19 +51,7 @@ export default function UserProfilePage() {
       if (profileError) throw profileError;
       setProfile(profileData);
 
-      // Fetch Posts
-      const { data: postsData } = await supabase
-        .from('posts')
-        .select(`
-          *, 
-          profiles!posts_author_id_fkey(username, display_name, avatar_url),
-          likes(count),
-          comments(count)
-        `)
-        .eq('author_id', id)
-        .order('created_at', { ascending: false });
-        
-      setPosts(postsData || []);
+      // Removed initial post fetch, now handled by activeTab effect
 
       // Fetch Connection Count (Accepted)
       const { count: acceptedCount } = await supabase
@@ -96,6 +88,52 @@ export default function UserProfilePage() {
     }
   };
 
+  // Fetch Items when activeTab changes
+  useEffect(() => {
+    async function fetchItems() {
+      if (!id) return;
+      try {
+        let data = [];
+        if (activeTab === 'Discussions') {
+          const { data: postsData } = await supabase
+            .from('posts')
+            .select('*, profiles!posts_author_id_fkey(display_name, username, avatar_url), likes(count), comments(count)')
+            .eq('author_id', id)
+            .order('created_at', { ascending: false });
+          data = postsData || [];
+        } else if (activeTab === 'Solved Discussions') {
+          const { data: postsData } = await supabase
+            .from('posts')
+            .select('*, profiles!posts_author_id_fkey(display_name, username, avatar_url), likes(count), comments(count)')
+            .eq('author_id', id)
+            .eq('is_solved', true)
+            .order('created_at', { ascending: false });
+          data = postsData || [];
+        } else if (activeTab === 'Best Replies') {
+          const { data: commentsData } = await supabase
+            .from('comments')
+            .select('post_id')
+            .eq('author_id', id)
+            .eq('is_best_answer', true);
+            
+          if (commentsData && commentsData.length > 0) {
+            const postIds = commentsData.map(c => c.post_id);
+            const { data: postsData } = await supabase
+              .from('posts')
+              .select('*, profiles!posts_author_id_fkey(display_name, username, avatar_url), likes(count), comments(count)')
+              .in('id', postIds)
+              .order('created_at', { ascending: false });
+            data = postsData || [];
+          }
+        }
+        setPosts(data);
+      } catch (err) {
+        console.error('Error fetching items:', err);
+      }
+    }
+    fetchItems();
+  }, [activeTab, id]);
+
   const handleConnect = async () => {
     if (!user || connecting) return;
     
@@ -106,6 +144,11 @@ export default function UserProfilePage() {
         await supabase
           .from('connections')
           .insert({ follower_id: user.id, following_id: id, status: 'pending' });
+        
+        await supabase
+          .from('notifications')
+          .insert({ user_id: id, actor_id: user.id, type: 'connection_request' });
+
         setConnectionState('pending_sent');
       } else if (connectionState === 'pending_sent') {
         // Cancel request
@@ -122,7 +165,17 @@ export default function UserProfilePage() {
           .update({ status: 'accepted' })
           .eq('follower_id', id)
           .eq('following_id', user.id);
-        setConnectionState('connected');
+            
+          // Notify the requester
+          await supabase
+            .from('notifications')
+            .insert({ 
+              user_id: id, 
+              actor_id: user.id, 
+              type: 'connection_accepted' 
+            });
+            
+          setConnectionState('connected');
         setConnectionCount(prev => prev + 1);
       } else if (connectionState === 'connected') {
         // Remove connection
@@ -214,15 +267,6 @@ export default function UserProfilePage() {
                 </div>
                 <p className="text-[#8E909E] text-sm mb-4">@{profile.username}</p>
               </div>
-              
-              <div className="flex flex-col items-end">
-                <span className="text-xl font-bold text-blue-400">
-                  {profile?.lifetime_honor >= 1000 
-                    ? `${(profile.lifetime_honor / 1000).toFixed(1)}k`
-                    : profile?.lifetime_honor || 0}
-                </span>
-                <span className="text-[10px] text-white/50 uppercase tracking-wider font-bold">Honor Points</span>
-              </div>
             </div>
 
             <div className="flex flex-wrap gap-4 text-sm text-[#C4C5D5] mb-4">
@@ -233,16 +277,37 @@ export default function UserProfilePage() {
             </div>
 
             {profile.bio && (
-              <p className="text-[#E2E1EB] text-sm leading-relaxed whitespace-pre-wrap mt-2 p-4 bg-white/5 rounded-2xl border border-white/5">
+              <p className="text-[#E2E1EB] text-sm leading-relaxed whitespace-pre-wrap mt-2 mb-4 p-4 bg-white/5 rounded-2xl border border-white/5">
                 {profile.bio}
               </p>
             )}
+
+            <div className="mb-8 max-w-md">
+              <HonorWidget isOwnProfile={false} profileData={profile} />
+            </div>
           </div>
         </div>
       </div>
 
+      {/* Tabs */}
+      <div className="flex overflow-x-auto scrollbar-hide gap-8 border-b border-white/5 mb-6 px-4">
+        {TABS.map(tab => (
+          <button
+            key={tab}
+            onClick={() => setActiveTab(tab)}
+            className={`pb-4 text-sm font-medium transition-colors whitespace-nowrap relative ${
+              activeTab === tab ? 'text-white' : 'text-white/50 hover:text-white/80'
+            }`}
+          >
+            {tab}
+            {activeTab === tab && (
+              <div className="absolute bottom-0 left-0 w-full h-0.5 bg-blue-500 rounded-t-full" />
+            )}
+          </button>
+        ))}
+      </div>
+
       {/* User's Posts */}
-      <h3 className="text-lg font-bold text-white mb-4 px-2">Discussions</h3>
       <div className="space-y-4">
         {posts.length > 0 ? (
           posts.map(post => (
@@ -254,8 +319,12 @@ export default function UserProfilePage() {
             />
           ))
         ) : (
-          <div className="text-center py-10 bg-[#1A1B22] border border-white/5 rounded-2xl">
-            <p className="text-[#8E909E]">No discussions started yet.</p>
+          <div className="text-center py-10 bg-[#1A1B22] border border-white/5 rounded-2xl mx-4">
+            <p className="text-[#8E909E]">
+              {activeTab === 'Discussions' && 'No discussions started yet.'}
+              {activeTab === 'Solved Discussions' && 'No solved discussions yet.'}
+              {activeTab === 'Best Replies' && 'No best replies earned yet.'}
+            </p>
           </div>
         )}
       </div>

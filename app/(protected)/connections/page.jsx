@@ -35,9 +35,16 @@ export default function ConnectionsPage() {
         .eq('status', 'accepted')
         .or(`follower_id.eq.${profile.id},following_id.eq.${profile.id}`);
         
-      const connectionProfiles = acceptedData?.map(c => 
+      const connectionProfilesRaw = acceptedData?.map(c => 
         (c.follower_id || '').toLowerCase() === (profile.id || '').toLowerCase() ? c.following : c.follower
       ).filter(Boolean) || [];
+      
+      const seenConn = new Set();
+      const connectionProfiles = connectionProfilesRaw.filter(p => {
+        if (seenConn.has(p.id)) return false;
+        seenConn.add(p.id);
+        return true;
+      });
 
       // Fetch pending requests (where someone else followed you)
       const { data: pendingData, error: pendingError } = await supabase
@@ -51,7 +58,13 @@ export default function ConnectionsPage() {
         
       if (pendingError) console.error('Pending connections query error:', pendingError);
         
-      const pendingProfiles = pendingData?.map(p => p.follower).filter(Boolean) || [];
+      const pendingProfilesRaw = pendingData?.map(p => p.follower).filter(Boolean) || [];
+      const seenPend = new Set();
+      const pendingProfiles = pendingProfilesRaw.filter(p => {
+        if (seenPend.has(p.id)) return false;
+        seenPend.add(p.id);
+        return true;
+      });
 
       setConnections(connectionProfiles || []);
       setPendingRequests(pendingProfiles || []);
@@ -70,8 +83,17 @@ export default function ConnectionsPage() {
         .update({ status: 'accepted' })
         .eq('follower_id', requesterId)
         .eq('following_id', profile.id);
-        
-      if (!error) {
+          
+        if (!error) {
+          // Notify the requester
+          await supabase
+            .from('notifications')
+            .insert({ 
+              user_id: requesterId, 
+              actor_id: profile.id, 
+              type: 'connection_accepted' 
+            });
+
         // Move from pending to connections locally
         const user = pendingRequests.find(u => u.id === requesterId);
         if (user) {

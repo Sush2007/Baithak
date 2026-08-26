@@ -4,7 +4,7 @@ import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import crypto from 'crypto';
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+const resend = new Resend(process.env.RESEND_API_KEY || 're_dummy_key_for_build');
 
 function generateSignature(action, targetId, authorId) {
   const secret = process.env.ADMIN_SECRET_KEY;
@@ -64,14 +64,20 @@ export async function POST(request) {
     if (logError) throw logError;
 
     // 5. Fetch reporter details for the email
-    const { data: profile } = await supabase.from('profiles').select('email, display_name').eq('id', user.id).single();
+    const { data: profile } = await supabase.from('profiles').select('username, display_name').eq('id', user.id).single();
 
     // 6. Build Supabase Dashboard Link & Signatures
     const targetTable = comment_id ? 'comments' : 'posts';
     const targetId = comment_id || post_id;
     
     // We need the original author ID to deduct points. We must fetch it.
+    // Fetch target author ID and details for the email
     const { data: targetData } = await supabase.from(targetTable).select('author_id').eq('id', targetId).single();
+    let targetAuthor = null;
+    if (targetData?.author_id) {
+      const { data: authorProfile } = await supabase.from('profiles').select('display_name, username').eq('id', targetData.author_id).single();
+      targetAuthor = authorProfile;
+    }
     const authorId = targetData?.author_id || '';
     
     // Create an admin client to update the status to 'reported' (RLS prevents anon users from updating other's posts)
@@ -81,7 +87,9 @@ export async function POST(request) {
         process.env.SUPABASE_SERVICE_ROLE_KEY,
         { cookies: { getAll() { return []; }, setAll() {} } }
       );
-      await adminClient.from(targetTable).update({ status: 'reported' }).eq('id', targetId);
+      if (targetTable === 'posts') {
+        await adminClient.from('posts').update({ status: 'reported' }).eq('id', targetId);
+      }
     }
 
     const dashboardLink = `https://supabase.com/dashboard/project/meezxcykzndoopudrydv/editor/${targetTable}?filter=id%3Aeq%3A${targetId}`;
@@ -98,7 +106,7 @@ export async function POST(request) {
     const { data, error } = await resend.emails.send({
       from: 'Baithak Support <support@baithakpe.com>', // Assuming verified domain
       to: [process.env.REPORT_EMAIL_TO || 'baithak-support@googlegroups.com'], // Forwards to Google Group
-      replyTo: profile?.email || user.email,
+      replyTo: user.email,
       subject: `🚩 [CONTENT REPORT] ${reason}`,
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden;">
@@ -110,11 +118,15 @@ export async function POST(request) {
             <table style="width: 100%; border-collapse: collapse; margin-bottom: 24px;">
               <tr>
                 <td style="padding: 8px 0; border-bottom: 1px solid #f3f4f6; color: #4b5563; width: 120px;"><strong>Reporter:</strong></td>
-                <td style="padding: 8px 0; border-bottom: 1px solid #f3f4f6;">${profile?.display_name || 'Unknown'} &lt;${profile?.email || user.email}&gt;</td>
+                <td style="padding: 8px 0; border-bottom: 1px solid #f3f4f6;">${profile?.display_name || 'Unknown'} (@${profile?.username || 'unknown'}) &lt;${user.email}&gt;</td>
               </tr>
               <tr>
                 <td style="padding: 8px 0; border-bottom: 1px solid #f3f4f6; color: #4b5563;"><strong>Reporter ID:</strong></td>
                 <td style="padding: 8px 0; border-bottom: 1px solid #f3f4f6;"><code>${user.id}</code></td>
+              </tr>
+              <tr>
+                <td style="padding: 8px 0; border-bottom: 1px solid #f3f4f6; color: #4b5563;"><strong>Target Author:</strong></td>
+                <td style="padding: 8px 0; border-bottom: 1px solid #f3f4f6;">${targetAuthor?.display_name || 'Unknown'} (@${targetAuthor?.username || 'unknown'})</td>
               </tr>
               <tr>
                 <td style="padding: 8px 0; border-bottom: 1px solid #f3f4f6; color: #4b5563;"><strong>Target ID:</strong></td>

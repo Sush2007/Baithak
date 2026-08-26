@@ -7,8 +7,9 @@ import { useAuth } from '../../../context/AuthContext';
 import { MessageSquare, ArrowUpCircle, Eye, Share2, MoreHorizontal, MapPin, Link as LinkIcon, Calendar } from 'lucide-react';
 import { supabase } from '../../../lib/supabaseClient';
 import PostCard from '../../../components/post/PostCard';
+import HonorWidget from '../../../components/profile/HonorWidget';
 
-const TABS = ['Discussions', 'Replies', 'Achievements', 'Upvotes'];
+const TABS = ['Discussions', 'Solved Discussions', 'Best Replies'];
 
 export default function ProfilePage() {
   const { profile, user } = useAuth();
@@ -63,70 +64,35 @@ export default function ProfilePage() {
         if (activeTab === 'Discussions') {
           const { data: postsData } = await supabase
             .from('posts')
-            .select(`
-              *, 
-              profiles!posts_author_id_fkey(display_name, username, avatar_url),
-              likes(count),
-              comments(count)
-            `)
+            .select('*, profiles!posts_author_id_fkey(display_name, username, avatar_url), likes(count), comments(count)')
             .eq('author_id', profile.id)
             .order('created_at', { ascending: false });
           data = postsData || [];
-        } 
-        else if (activeTab === 'Replies') {
-          // Fetch posts that the user has replied to
+        } else if (activeTab === 'Solved Discussions') {
+          const { data: postsData } = await supabase
+            .from('posts')
+            .select('*, profiles!posts_author_id_fkey(display_name, username, avatar_url), likes(count), comments(count)')
+            .eq('author_id', profile.id)
+            .eq('is_solved', true)
+            .order('created_at', { ascending: false });
+          data = postsData || [];
+        } else if (activeTab === 'Best Replies') {
           const { data: commentsData } = await supabase
             .from('comments')
-            .select(`
-              post_id,
-              posts!inner(
-                *,
-                profiles!posts_author_id_fkey(display_name, username, avatar_url),
-                likes(count),
-                comments(count)
-              )
-            `)
+            .select('post_id')
             .eq('author_id', profile.id)
-            .order('created_at', { ascending: false });
-          
-          // Extract posts and remove duplicates
-          if (commentsData) {
-            const uniquePosts = new Map();
-            commentsData.forEach(c => {
-              if (c.posts && !uniquePosts.has(c.posts.id)) {
-                uniquePosts.set(c.posts.id, c.posts);
-              }
-            });
-            data = Array.from(uniquePosts.values());
-          }
-        }
-        else if (activeTab === 'Activity') {
-          // Fetch upvoted posts
-          const { data: likesData } = await supabase
-            .from('likes')
-            .select(`
-              post_id,
-              posts!inner(
-                *,
-                profiles!posts_author_id_fkey(display_name, username, avatar_url),
-                likes(count),
-                comments(count)
-              )
-            `)
-            .eq('user_id', profile.id)
-            .order('created_at', { ascending: false });
+            .eq('is_best_answer', true);
             
-          if (likesData) {
-            const uniquePosts = new Map();
-            likesData.forEach(l => {
-              if (l.posts && !uniquePosts.has(l.posts.id)) {
-                uniquePosts.set(l.posts.id, l.posts);
-              }
-            });
-            data = Array.from(uniquePosts.values());
+          if (commentsData && commentsData.length > 0) {
+            const postIds = commentsData.map(c => c.post_id);
+            const { data: postsData } = await supabase
+              .from('posts')
+              .select('*, profiles!posts_author_id_fkey(display_name, username, avatar_url), likes(count), comments(count)')
+              .in('id', postIds)
+              .order('created_at', { ascending: false });
+            data = postsData || [];
           }
         }
-        
         setItems(data);
       } catch (err) {
         console.error(`Error fetching ${activeTab}:`, err);
@@ -188,15 +154,28 @@ export default function ProfilePage() {
             {profile?.bio || 'No bio provided yet.'}
           </p>
           
-          <div className="flex flex-wrap items-center justify-between gap-y-4">
-            <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-xs text-white/50">
+          <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-xs text-white/50 mb-6">
               <span className="flex items-center gap-1.5"><MapPin size={14} /> VSSUT Burla, Odisha</span>
               <Link href="/connections" className="flex items-center gap-1.5 font-medium text-[#8FAAFF] hover:underline">
                 {connectionCount} Connections
               </Link>
             </div>
+          </div>
+
+          {/* Stats Row */}
+          <div className="flex items-center justify-between mb-8 pb-8 border-b border-white/5">
+            <div className="flex items-center gap-10">
+              <div className="flex flex-col">
+                <span className="text-xl font-bold text-white">{discussionsCount}</span>
+                <span className="text-xs text-white/50 uppercase tracking-wider font-medium">Discussions</span>
+              </div>
+              <div className="flex flex-col">
+                <span className="text-xl font-bold text-white">{repliesCount}</span>
+                <span className="text-xs text-white/50 uppercase tracking-wider font-medium">Replies</span>
+              </div>
+            </div>
             
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-4">
               {profile?.instagram_url && (
                 <a href={profile.instagram_url} target="_blank" rel="noopener noreferrer" className="text-white/50 hover:text-white transition-colors" title="Instagram">
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -217,26 +196,10 @@ export default function ProfilePage() {
               )}
             </div>
           </div>
-        </div>
 
-        {/* Stats Row */}
-        <div className="flex items-center justify-between sm:justify-start sm:gap-8 mb-8 pb-8 border-b border-white/5">
-          <div className="flex flex-col">
-            <span className="text-xl font-bold text-white">{discussionsCount}</span>
-            <span className="text-xs text-white/50 uppercase tracking-wider font-medium">Discussions</span>
-          </div>
-          <div className="flex flex-col">
-            <span className="text-xl font-bold text-white">{repliesCount}</span>
-            <span className="text-xs text-white/50 uppercase tracking-wider font-medium">Replies</span>
-          </div>
-          <div className="flex flex-col">
-            <span className="text-xl font-bold text-blue-400">
-              {profile?.lifetime_honor >= 1000 
-                ? `${(profile.lifetime_honor / 1000).toFixed(1)}k` 
-                : profile?.lifetime_honor || 0}
-            </span>
-            <span className="text-xs text-white/50 uppercase tracking-wider font-medium">Honour Points</span>
-          </div>
+        {/* Honor Points Widget */}
+        <div className="mb-8 max-w-md block lg:hidden">
+          <HonorWidget isOwnProfile={true} />
         </div>
 
         {/* Tabs */}

@@ -1,7 +1,8 @@
 "use client";
+import { feedCache } from '../../../lib/cache';
 
-import React, { useState, useEffect } from 'react';
-import { useWindowVirtualizer } from '@tanstack/react-virtual';
+import React, { useState, useEffect, useTransition, useCallback } from 'react';
+
 import Image from 'next/image';
 import { MessageSquare, ArrowUpCircle, Eye, Share2, MoreHorizontal, ChevronDown, Bookmark, Flag, AlertTriangle, X } from 'lucide-react';
 import dynamic from 'next/dynamic';
@@ -12,43 +13,34 @@ import { useRouter } from 'next/navigation';
 import { supabase } from '../../../lib/supabaseClient';
 import { useAuth } from '../../../context/AuthContext';
 
-const TABS = ['For You', 'Trending', 'Unanswered', 'Solved'];
-
-
+const TABS = ['For You', 'Unanswered', 'Solved'];
 
 // Removed inline ReportModal
 
-const DashboardPageClient = () => {
+const DashboardPageClient = ({ initialPosts = [], initialTags = ['All'] }) => {
   const { user } = useAuth();
   const router = useRouter();
+
+  // useTransition: keeps UI responsive on tab/tag switches (fixes INP)
+  const [isPending, startTransition] = useTransition();
+
   const [activeTab, setActiveTab] = useState('For You');
   const [activeTagFilter, setActiveTagFilter] = useState('All');
-  const [dynamicTags, setDynamicTags] = useState(['All']);
+  // Seed tags from SSR data — no waiting for a separate client fetch
+  const [dynamicTags, setDynamicTags] = useState(initialTags);
   const [openDropdownId, setOpenDropdownId] = useState(null);
   const [reportModalPost, setReportModalPost] = useState(null);
   const [quickProfileUserId, setQuickProfileUserId] = useState(null);
-  const [posts, setPosts] = useState([]);
-  const [loading, setLoading] = useState(true);
+
+  // Seed posts from SSR data — eliminates loading flash on first paint
+  const [posts, setPosts] = useState(initialPosts);
+  // Only show skeleton if SSR gave us nothing (fallback path)
+  const [loading, setLoading] = useState(initialPosts.length === 0);
   const [loadingMore, setLoadingMore] = useState(false);
-  const [hasMore, setHasMore] = useState(true);
+  const [hasMore, setHasMore] = useState(initialPosts.length === 10);
   const [pageOffset, setPageOffset] = useState(0);
   const POSTS_PER_PAGE = 10;
   
-  const parentRef = React.useRef(null);
-  const [parentOffset, setParentOffset] = useState(0);
-
-  useEffect(() => {
-    if (parentRef.current) {
-      setParentOffset(parentRef.current.getBoundingClientRect().top + window.scrollY);
-    }
-  }, [posts.length, activeTab, activeTagFilter]);
-
-  const virtualizer = useWindowVirtualizer({
-    count: posts.length,
-    estimateSize: () => 500, // Better estimated height for a PostCard on mobile/desktop
-    overscan: 5,
-    scrollMargin: parentOffset,
-  });
 
   const scrollRef = React.useRef(null);
 
@@ -69,10 +61,20 @@ const DashboardPageClient = () => {
   }, []);
 
   // When tab or tag filter changes, reset and fetch page 0
+  // Skip the initial mount for 'For You'/'All' since SSR already fetched that
+  const isFirstMount = React.useRef(true);
   useEffect(() => {
-    setPosts([]);
-    setPageOffset(0);
-    setHasMore(true);
+    if (isFirstMount.current && activeTab === 'For You' && activeTagFilter === 'All' && initialPosts.length > 0) {
+      isFirstMount.current = false;
+      return; // skip — SSR data already loaded
+    }
+    isFirstMount.current = false;
+
+    startTransition(() => {
+      setPosts([]);
+      setPageOffset(0);
+      setHasMore(true);
+    });
     fetchPosts(0, true);
   }, [activeTab, activeTagFilter]);
 
@@ -131,8 +133,18 @@ const DashboardPageClient = () => {
     if (!hasMore && !isInitial) return;
     
     try {
-      if (isInitial) setLoading(true);
-      else setLoadingMore(true);
+      if (isInitial) {
+        const cached = feedCache.get(`${activeTab}-${activeTagFilter}`);
+        if (cached) {
+          setPosts(cached);
+          setLoading(false);
+          // fetch silently in background to validate
+        } else {
+          setLoading(true);
+        }
+      } else {
+        setLoadingMore(true);
+      }
 
       const { data, error } = await supabase.rpc('get_feed_posts', {
         p_user_id: user?.id || null,
@@ -160,9 +172,11 @@ const DashboardPageClient = () => {
 
       if (isInitial) {
         setPosts(formattedPosts);
+        feedCache.set(`${activeTab}-${activeTagFilter}`, formattedPosts);
         
         // Only fetch all tags once on initial load (for the tag filter UI)
-        if (activeTagFilter === 'All') {
+        // Skip if we already have tags from SSR
+        if (activeTagFilter === 'All' && dynamicTags.length <= 1) {
            const { data: allTagsData } = await supabase.from('posts').select('tags');
            const tagsSet = new Set();
            allTagsData?.forEach(p => {
@@ -202,8 +216,8 @@ const DashboardPageClient = () => {
           {TABS.map(tab => (
             <button
               key={tab}
-              onClick={() => setActiveTab(tab)}
-              className="flex-1 flex justify-center min-w-[100px] hover:bg-white/5 transition-colors"
+              onClick={() => startTransition(() => setActiveTab(tab))}
+              className={`flex-1 flex justify-center min-w-[100px] hover:bg-white/5 transition-colors ${isPending ? 'opacity-70' : ''}`}
             >
               <div className="relative py-4">
                 <span className={`text-[15px] font-bold ${activeTab === tab ? 'text-white' : 'text-[#8E909E]'}`}>
@@ -226,7 +240,7 @@ const DashboardPageClient = () => {
             {dynamicTags.map((tag) => (
               <button
                 key={tag}
-                onClick={() => setActiveTagFilter(tag)}
+                onClick={() => startTransition(() => setActiveTagFilter(tag))}
                 className={`whitespace-nowrap px-3.5 py-1.5 rounded-lg text-[13px] font-medium transition-colors ${
                   activeTagFilter === tag
                     ? 'bg-white text-black'
@@ -242,46 +256,46 @@ const DashboardPageClient = () => {
       {/* Feed Content */}
       <div className="mt-6">
         {loading ? (
-          <div className="flex justify-center p-8">
-             <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-          </div>
-        ) : posts.length === 0 ? (
+            <div className="space-y-6">
+              {[1, 2, 3].map((n) => (
+                <div key={n} className="bg-[#1A1B22] border-b border-white/5 sm:border sm:border-white/5 sm:rounded-2xl p-4 sm:p-5 shadow-lg shadow-black/20 animate-pulse">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="w-11 h-11 bg-white/10 rounded-full shrink-0"></div>
+                    <div className="space-y-2 flex-1">
+                      <div className="h-4 bg-white/10 rounded w-1/4"></div>
+                      <div className="h-3 bg-white/5 rounded w-1/3"></div>
+                    </div>
+                  </div>
+                  <div className="space-y-3">
+                    <div className="h-5 bg-white/10 rounded w-3/4"></div>
+                    <div className="h-4 bg-white/5 rounded w-full"></div>
+                    <div className="h-4 bg-white/5 rounded w-full"></div>
+                    <div className="h-4 bg-white/5 rounded w-5/6"></div>
+                  </div>
+                  <div className="flex gap-6 mt-6 pt-4 border-t border-white/5">
+                    <div className="w-12 h-4 bg-white/10 rounded"></div>
+                    <div className="w-12 h-4 bg-white/10 rounded"></div>
+                    <div className="w-12 h-4 bg-white/10 rounded"></div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : posts.length === 0 ? (
           <div className="text-center p-8 text-white/50">No discussions found.</div>
         ) : (
           <>
-            <div 
-              ref={parentRef}
-              style={{ 
-                height: `${virtualizer.getTotalSize()}px`, 
-                width: '100%', 
-                position: 'relative' 
-              }}
-            >
-              {virtualizer.getVirtualItems().map((virtualItem) => {
-                const post = posts[virtualItem.index];
-                return (
-                  <div
-                    key={virtualItem.key}
-                    data-index={virtualItem.index}
-                    ref={virtualizer.measureElement}
-                    style={{
-                      position: 'absolute',
-                      top: 0,
-                      left: 0,
-                      width: '100%',
-                      transform: `translateY(${virtualItem.start}px)`,
-                      paddingBottom: '1rem',
-                    }}
-                  >
-                    <PostCard 
-                      post={post} 
-                      onReport={setReportModalPost} 
-                      onQuickProfile={(id) => router.push(`/profile/${id}`)}
-                      onDelete={(deletedId) => setPosts(prev => prev.filter(p => p.id !== deletedId))}
-                    />
-                  </div>
-                );
-              })}
+            <div className="space-y-4">
+              {posts.map((post, index) => (
+                <div key={post.id} className="pb-4">
+                  <PostCard
+                    post={post}
+                    priority={index === 0} // LCP fix: preload first post's image
+                    onReport={setReportModalPost}
+                    onQuickProfile={(id) => router.push(`/profile/${id}`)}
+                    onDelete={(deletedId) => setPosts(prev => prev.filter(p => p.id !== deletedId))}
+                  />
+                </div>
+              ))}
             </div>
             
             {loadingMore && (

@@ -146,7 +146,7 @@ const ProfileSetupPageClient = () => {
   };
 
   const handleUsernameChange = (e) => {
-    const val = e.target.value.toLowerCase().replace(/\s/g, '');
+    const val = e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, '');
     setUsername(val);
     const errorMsg = validateUsername(val);
     setUsernameError(errorMsg);
