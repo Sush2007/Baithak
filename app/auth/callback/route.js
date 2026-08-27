@@ -45,10 +45,32 @@ export async function GET(request) {
       }
     );
 
-    const { error } = await supabase.auth.exchangeCodeForSession(code);
+    const { data: sessionData, error } = await supabase.auth.exchangeCodeForSession(code);
 
     if (!error) {
-      // Auth cookies are already on `response` — just return it
+      const userId = sessionData.session?.user?.id;
+      let destination = next;
+
+      if (userId) {
+        const { data: profile, error: profileError } = await supabase
+          .from('profiles')
+          .select('setup_completed')
+          .eq('id', userId)
+          .maybeSingle();
+
+        if (profileError) {
+          console.error('[auth/callback] Error fetching profile:', profileError.message);
+        }
+
+        // A missing profile is also an incomplete profile (for example, if the
+        // database trigger has not created the placeholder row yet).
+        if (profileError || !profile?.setup_completed) {
+          destination = '/profile-setup';
+        }
+      }
+
+      // Auth cookies are already on `response`; update only the redirect target.
+      response.headers.set('Location', new URL(destination, origin).toString());
       return response;
     }
 

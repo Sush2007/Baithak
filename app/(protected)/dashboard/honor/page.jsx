@@ -7,6 +7,8 @@ import { BADGES, getCurrentHonorBadge, getNextHonorBadge } from '../../../../lib
 import { Trophy, Activity, Target, Flame, ChevronRight, Zap, BookOpen, MessageCircle, Star, ThumbsUp, Award, Clock } from 'lucide-react';
 import Link from 'next/link';
 
+const MIN_REDEEMABLE_HP = 2000;
+
 export default function HonorDashboard() {
   const { user } = useAuth();
   const [profileData, setProfileData] = useState(null);
@@ -80,6 +82,9 @@ export default function HonorDashboard() {
     );
   }
 
+  const lifetimeHP = profileData?.lifetime_honor || 0;
+  const canRedeem = lifetimeHP >= MIN_REDEEMABLE_HP;
+
   const handleRedeem = async () => {
     if (!upiId.trim()) return;
     setRedeemStatus('submitting');
@@ -99,9 +104,6 @@ export default function HonorDashboard() {
     }
   };
 
-  const canRedeem = lifetimeHP >= 5000;
-
-  const lifetimeHP = profileData?.lifetime_honor || 0;
   const currentBadge = getCurrentHonorBadge(lifetimeHP);
   const nextBadge = getNextHonorBadge(lifetimeHP);
 
@@ -127,7 +129,7 @@ export default function HonorDashboard() {
       
       {/* Header */}
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-white tracking-tight mb-1">Honor & Reputation</h1>
+        <h1 className="text-2xl font-bold text-white tracking-tight mb-1">Honor </h1>
         <p className="text-sm text-[#8E909E]">Track your progress, badges, and community impact.</p>
       </div>
 
@@ -160,7 +162,7 @@ export default function HonorDashboard() {
           </div>
           
           <div className="flex-1 w-full text-center sm:text-left">
-            <p className="text-[10px] text-accent-yellow font-bold uppercase tracking-wider mb-1">Total Lifetime Honor</p>
+            
             <div className="flex items-baseline justify-center sm:justify-start gap-1 mb-2">
               <h2 className="text-3xl font-black text-white">{lifetimeHP.toLocaleString()}</h2>
               <span className="text-white/50 text-xs font-medium">HP</span>
@@ -204,11 +206,11 @@ export default function HonorDashboard() {
                   {!canRedeem && (
                     <div 
                       className="absolute inset-y-0 left-0 bg-blue-500/20 transition-all duration-1000 ease-out"
-                      style={{ width: `${Math.min(100, (lifetimeHP / 5000) * 100)}%` }}
+                      style={{ width: `${Math.min(100, (lifetimeHP / MIN_REDEEMABLE_HP) * 100)}%` }}
                     />
                   )}
                   <span className="relative z-10 flex items-center justify-center gap-2">
-                    {canRedeem ? 'Redeem Points' : `Reach 5,000 pts to Redeem (${lifetimeHP}/5000)`}
+                    {canRedeem ? 'Redeem Points' : `Reach ${MIN_REDEEMABLE_HP.toLocaleString()} pts to Redeem (${lifetimeHP}/${MIN_REDEEMABLE_HP})`}
                   </span>
                 </button>
 
