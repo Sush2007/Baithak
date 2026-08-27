@@ -281,7 +281,7 @@ export default function OpenDiscussionModal({ isOpen, onClose }) {
   if (!isOpen || !mounted) return null;
 
   const modalContent = (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center sm:p-4">
       {/* Backdrop */}
       <div 
         className="absolute inset-0 bg-black/60 backdrop-blur-sm" 
@@ -289,146 +289,124 @@ export default function OpenDiscussionModal({ isOpen, onClose }) {
       />
       
       {/* Modal */}
-      <div className="relative w-full max-w-[540px] bg-[#1E1F26] border border-white/10 rounded-[12px] shadow-[0_25px_50px_-12px_rgba(0,0,0,0.25)] animate-fade-in overflow-hidden flex flex-col">
+      <div className="relative w-full h-full sm:h-auto sm:max-h-[85vh] sm:max-w-[600px] bg-[#1E1F26] sm:rounded-2xl shadow-2xl animate-in fade-in zoom-in-95 duration-200 overflow-hidden flex flex-col">
         
-        {/* Header */}
-        <div className="relative px-6 py-6 border-b border-white/5">
+        {/* Header - Mobile friendly */}
+        <div className="flex items-center justify-between px-4 py-3 sm:py-4 border-b border-white/5">
           <button 
             onClick={onClose}
-            className="absolute top-6 right-6 text-white/50 hover:text-white p-1 rounded-full hover:bg-white/10 transition-colors"
+            className="text-white/60 hover:text-white p-2 -ml-2 rounded-full hover:bg-white/10 transition-colors"
           >
-            <X size={18} />
+            <X size={20} />
           </button>
-          <div className="pr-10">
-            <h2 className="text-[24px] font-bold text-[#E2E1EB] leading-tight">Open a Discussion</h2>
-            <p className="text-[13px] text-[#C4C5D5] mt-1.5">Ask a doubt, seek opinions, or start a meaningful conversation</p>
+          <div className="flex gap-3">
+            <button 
+              onClick={handleSubmit}
+              disabled={!content.trim() || isSubmitting}
+              className="bg-emerald-500 hover:bg-emerald-600 disabled:bg-white/10 disabled:text-white/30 text-white font-bold px-5 py-1.5 rounded-full text-sm transition-colors active:scale-95 flex items-center gap-2"
+            >
+              {isSubmitting ? <Loader2 size={16} className="animate-spin" /> : 'Post'}
+            </button>
           </div>
         </div>
 
         {/* Body */}
-        <div className="p-6 space-y-5 overflow-y-auto max-h-[65vh] scrollbar-hide">
-          {/* Title Field */}
-          <div className="space-y-2.5">
-            <label className="block text-[12px] font-semibold text-[#E2E1EB] uppercase tracking-wider">
-              DISCUSSION TITLE (OPTIONAL)
-            </label>
-            <input 
-              type="text" 
-              placeholder="Enter a descriptive title..."
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              className="w-full h-[40px] bg-[#0C0E14] border border-white/10 rounded-lg px-3.5 text-[14px] text-white placeholder:text-[#8E909E] outline-none focus:border-[#0033A0] transition-colors"
-            />
-          </div>
-          
-          {/* Description Field */}
-          <div className="space-y-2.5 relative">
-            <label className="block text-[12px] font-semibold text-[#E2E1EB] uppercase tracking-wider">
-              DISCUSSION DESCRIPTION
-            </label>
-            <textarea 
-              ref={textareaRef}
-              placeholder="Share more context, details, or questions... Try typing # to add tags!"
-              value={content}
-              onChange={handleContentChange}
-              onKeyUp={(e) => setCursorPosition(e.target.selectionStart)}
-              onClick={(e) => setCursorPosition(e.target.selectionStart)}
-              className="w-full min-h-[100px] bg-[#0C0E14] border border-white/10 rounded-lg p-3.5 text-[14px] text-white placeholder:text-[#8E909E] outline-none focus:border-[#0033A0] resize-none transition-colors"
-            />
-            {/* Hashtag Autocomplete Popup */}
-            {showHashtags && (
-              <div className="absolute z-10 left-0 mt-1 w-auto min-w-[200px] bg-[#1A1B22] border border-white/10 rounded-lg shadow-xl overflow-hidden animate-fade-in">
-                <div className="px-3 py-2 border-b border-white/5 bg-white/5">
-                  <span className="text-[10px] font-bold text-white/50 uppercase tracking-wider">Suggested Tags</span>
-                </div>
-                <div className="p-1.5 flex flex-col">
-                  {hashtagOptions.map(tag => (
-                    <button
-                      key={tag}
-                      onClick={() => insertHashtag(tag)}
-                      className="text-left px-3 py-2 text-sm text-[#E2E1EB] hover:bg-[#0033A0] hover:text-white rounded transition-colors"
-                    >
-                      #{tag}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Upload Media Field */}
-          <div className="space-y-2.5">
-            <label className="block text-[12px] font-semibold text-[#E2E1EB] uppercase tracking-wider">
-              UPLOAD MEDIA (OPTIONAL)
-            </label>
-            {!mediaPreview && uploadProgress === 0 && (
-              <div className="flex gap-3">
-                <label className="flex items-center gap-2 px-4 py-3 bg-[#0C0E14] border border-white/10 border-dashed rounded-lg text-sm text-white/70 hover:bg-white/5 hover:text-white hover:border-white/30 cursor-pointer transition-all w-full justify-center">
-                  <UploadCloud size={18} className="text-[#0033A0]" />
-                  <span className="font-medium">Upload Image or Video (Max 30MB)</span>
-                  <input type="file" accept="image/*,video/*" className="hidden" onChange={handleMediaUpload} />
-                </label>
-              </div>
-            )}
+        <div className="flex-1 overflow-y-auto scrollbar-hide flex flex-col">
+          <div className="p-4 sm:p-5 flex gap-3 sm:gap-4 flex-1">
+            <div className="shrink-0">
+               <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-gradient-to-tr from-[#0033A0] to-[#FFC300] overflow-hidden shadow-inner flex items-center justify-center">
+                 {user?.user_metadata?.avatar_url ? (
+                   <img src={user.user_metadata.avatar_url} className="w-full h-full object-cover" alt="Avatar" />
+                 ) : (
+                   <span className="text-white/80 text-lg">👤</span>
+                 )}
+               </div>
+            </div>
             
-            {uploadProgress > 0 && (
-              <div className="flex flex-col justify-center p-6 border border-white/10 bg-[#0C0E14] rounded-lg">
-                <div className="flex justify-between items-center mb-2">
-                  <p className="text-[13px] font-semibold text-[#E2E1EB]">
-                    {uploadProgress < 100 ? 'Uploading & Compressing...' : 'Processing complete!'}
-                  </p>
-                  <span className="text-[12px] text-[#FFC300] font-bold">{Math.min(uploadProgress, 100)}%</span>
-                </div>
-                <div className="w-full h-1.5 bg-white/10 rounded-full overflow-hidden">
-                  <div 
-                    className="h-full bg-gradient-to-r from-[#0033A0] to-[#FFC300] transition-all duration-300 ease-out rounded-full"
-                    style={{ width: `${Math.min(uploadProgress, 100)}%` }}
-                  />
-                </div>
-                <p className="text-[11px] text-white/40 mt-3 flex items-center gap-1.5">
-                  <Loader2 size={12} className={uploadProgress < 100 ? "animate-spin" : "hidden"} />
-                  High-efficiency codec applied
-                </p>
-              </div>
-            )}
+            <div className="flex-1 flex flex-col min-h-[150px]">
+              <input 
+                type="text" 
+                placeholder="Title (Optional)"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                className="w-full bg-transparent text-xl sm:text-2xl font-extrabold text-white placeholder:text-white/30 outline-none mb-2"
+              />
+              <textarea 
+                ref={textareaRef}
+                placeholder="What do you want to discuss? Type # to add tags"
+                value={content}
+                onChange={handleContentChange}
+                onKeyUp={(e) => setCursorPosition(e.target.selectionStart)}
+                onClick={(e) => setCursorPosition(e.target.selectionStart)}
+                className="w-full flex-1 bg-transparent text-base sm:text-lg text-white/90 placeholder:text-white/30 outline-none resize-none"
+              />
 
-            {mediaPreview && uploadProgress === 0 && (
-              <div className="relative group rounded-xl overflow-hidden border border-white/10 bg-[#0C0E14]">
+              {/* Hashtag Autocomplete Popup */}
+              {showHashtags && (
+                <div className="relative">
+                  <div className="absolute z-10 top-0 left-0 mt-1 w-auto min-w-[200px] bg-[#1A1B22] border border-white/10 rounded-xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-2">
+                    <div className="p-1.5 flex flex-col">
+                      {hashtagOptions.map(tag => (
+                        <button
+                          key={tag}
+                          onClick={() => insertHashtag(tag)}
+                          className="text-left px-3 py-2 text-sm text-[#E2E1EB] hover:bg-white/10 hover:text-white rounded-lg transition-colors font-medium"
+                        >
+                          <span className="text-blue-400 mr-1">#</span>{tag}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Media Preview inside the body */}
+          {mediaPreview && uploadProgress === 0 && (
+            <div className="px-4 sm:px-[72px] pb-4">
+              <div className="relative group rounded-2xl overflow-hidden border border-white/10">
                 {mediaFile?.type.startsWith('video/') ? (
-                  <video src={mediaPreview} controls className="w-full h-auto max-h-[250px] object-cover" />
+                  <video src={mediaPreview} controls className="w-full h-auto max-h-[300px] object-cover bg-black/50" />
                 ) : (
-                  <img src={mediaPreview} alt="Preview" className="w-full h-auto max-h-[250px] object-cover" />
+                  <img src={mediaPreview} alt="Preview" className="w-full h-auto max-h-[300px] object-cover bg-black/50" />
                 )}
                 <button 
                   onClick={() => { setMediaPreview(null); setMediaFile(null); }}
-                  className="absolute top-3 right-3 p-2 bg-black/60 hover:bg-red-500 rounded-full text-white backdrop-blur-sm transition-all opacity-0 group-hover:opacity-100 shadow-lg"
+                  className="absolute top-3 right-3 p-2 bg-black/60 backdrop-blur hover:bg-black rounded-full text-white transition-all shadow-lg"
                 >
-                  <Trash2 size={16} />
+                  <X size={16} />
                 </button>
               </div>
-            )}
-          </div>
+            </div>
+          )}
+
+          {uploadProgress > 0 && (
+            <div className="px-4 sm:px-[72px] pb-4">
+              <div className="flex flex-col justify-center p-4 border border-emerald-500/30 bg-emerald-500/5 rounded-2xl">
+                <div className="flex justify-between items-center mb-2">
+                  <p className="text-sm font-medium text-emerald-400">
+                    {uploadProgress < 100 ? 'Compressing media...' : 'Done!'}
+                  </p>
+                  <span className="text-xs text-emerald-400 font-bold">{Math.min(uploadProgress, 100)}%</span>
+                </div>
+                <div className="w-full h-1 bg-black/50 rounded-full overflow-hidden">
+                  <div 
+                    className="h-full bg-emerald-500 transition-all duration-300 ease-out rounded-full"
+                    style={{ width: `${Math.min(uploadProgress, 100)}%` }}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
-        {/* Footer Actions */}
-        <div className="bg-[#282A31] px-6 py-5 flex items-center justify-end gap-3 mt-auto border-t border-white/5">
-          <button 
-            onClick={onClose}
-            className="text-[14px] font-medium text-[#C4C5D5] hover:text-white transition-colors px-4 py-2"
-          >
-            Cancel
-          </button>
-          <button 
-            onClick={handleSubmit}
-            disabled={!content.trim() || isSubmitting}
-            className="flex items-center gap-2 bg-[#003B95] hover:bg-[#002B73] disabled:bg-[#003B95]/50 disabled:text-white/50 text-white text-[14px] font-semibold px-6 py-2.5 rounded-lg transition-colors shadow-[inset_0px_1px_0px_0px_rgba(255,255,255,0.1)]"
-          >
-            {isSubmitting ? (
-              <><Loader2 size={16} className="animate-spin" /> Posting...</>
-            ) : (
-              "Open Discussion"
-            )}
-          </button>
+        {/* Toolbar Footer */}
+        <div className="px-4 py-3 sm:px-[72px] sm:py-3 flex items-center gap-2 border-t border-white/5 bg-[#1E1F26]">
+          <label className="p-2 text-blue-400 hover:text-blue-300 hover:bg-blue-400/10 rounded-full cursor-pointer transition-colors">
+            <ImageIcon size={20} />
+            <input type="file" accept="image/*,video/*" className="hidden" onChange={handleMediaUpload} />
+          </label>
         </div>
 
       </div>

@@ -88,6 +88,7 @@ export const metadata = {
 
 import { Toaster } from 'react-hot-toast';
 import { CSPostHogProvider } from './providers';
+import InstallPrompt from '../components/InstallPrompt';
 
 // ─── JSON-LD Structured Data ──────────────────────────────────────────────────
 // Covers: WebSite (with SearchAction), Organization, FAQPage, SiteLinksSearchBox
@@ -244,6 +245,7 @@ export default function RootLayout({ children }) {
         <CSPostHogProvider>
           <AuthProvider>
             {children}
+            <InstallPrompt />
           </AuthProvider>
           <Toaster
             position="bottom-right"

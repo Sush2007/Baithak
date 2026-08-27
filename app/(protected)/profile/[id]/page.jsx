@@ -210,44 +210,62 @@ export default function UserProfilePage() {
   }
 
   return (
-    <div className="max-w-3xl w-full mx-auto pb-20 md:pb-8 pt-4">
+    <div className="max-w-3xl w-full mx-auto pb-20 md:pb-8">
       {/* Header */}
-      <div className="flex items-center gap-4 mb-6 px-4">
+      <div className="flex items-center gap-4 p-4 absolute top-0 z-50">
         <button 
           onClick={() => router.back()} 
-          className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center hover:bg-white/10 transition-colors"
+          className="w-10 h-10 rounded-full bg-black/40 backdrop-blur-md flex items-center justify-center hover:bg-black/60 transition-colors"
         >
           <ArrowLeft size={20} className="text-white" />
         </button>
-        <h1 className="text-xl font-bold text-white">Profile</h1>
       </div>
 
-      {/* Profile Cover & Info */}
-      <div className="bg-[#1A1B22] border border-white/5 rounded-3xl overflow-hidden mb-6 shadow-xl relative">
-        <div className="h-32 bg-gradient-to-r from-[#0033A0]/40 to-[#0052FF]/20 relative"></div>
-        
-        <div className="px-6 pb-6 relative">
-          <div className="flex justify-between items-end -mt-12 mb-4">
-            <div className="w-24 h-24 rounded-full border-4 border-[#1A1B22] bg-[#0C0E14] overflow-hidden relative">
+      {/* Cover Photo */}
+      <div className="w-full h-32 sm:h-56 overflow-hidden relative sm:rounded-b-3xl">
+        {profile?.cover_url ? (
+          <img src={profile.cover_url} alt="Cover" className="w-full h-full object-cover opacity-90" />
+        ) : (
+          <div className="w-full h-full bg-gradient-to-r from-[#0033A0]/40 to-[#0052FF]/20" />
+        )}
+        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-[#0C0E14]/10 to-[#0C0E14]" />
+      </div>
+      
+      <div className="px-4 sm:px-8 -mt-16 sm:-mt-20 relative z-10 max-w-3xl mx-auto w-full mb-8">
+        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-4">
+          <div className="flex flex-col sm:flex-row items-start sm:items-end gap-3 sm:gap-5">
+            <div className="relative w-24 h-24 sm:w-32 sm:h-32 rounded-full overflow-hidden border-4 border-[#0C0E14] bg-[#1A1B22] shadow-2xl ring-4 ring-white/5">
               {profile.avatar_url ? (
                 <img src={profile.avatar_url} alt={profile.display_name} className="w-full h-full object-cover" />
               ) : (
-                <div className="w-full h-full bg-gradient-to-tr from-[#8A2387] to-[#F27121] flex items-center justify-center text-3xl">👤</div>
+                <div className="w-full h-full bg-gradient-to-tr from-[#8A2387] via-[#E2336B] to-[#F27121] flex items-center justify-center text-3xl shadow-inner">👤</div>
               )}
             </div>
             
-            {user && (
+            <div className="pb-1 sm:pb-3">
+              <div className="flex items-center gap-2 mb-1.5">
+                <h1 className="text-2xl sm:text-[28px] font-black text-transparent bg-clip-text bg-gradient-to-br from-white to-white/70 tracking-tight leading-none">
+                  {profile.display_name}
+                </h1>
+                {profile.is_verified && <BadgeCheck size={24} className="text-[#0052FF]" fill="currentColor" stroke="#1A1B22" strokeWidth={1} />}
+              </div>
+              <p className="text-[15px] text-[#8E909E] font-medium">@{profile.username}</p>
+            </div>
+          </div>
+            
+          {user && (
+            <div className="w-full sm:w-auto mt-2 sm:mt-0 sm:pb-3">
               <button 
                 onClick={handleConnect}
                 disabled={connecting}
-                className={`px-6 py-2 rounded-xl text-sm font-bold transition-all flex items-center gap-2 ${
+                className={`w-full sm:w-auto px-6 py-2.5 rounded-full text-sm font-bold transition-all active:scale-95 flex items-center justify-center gap-2 ${
                   connectionState === 'connected' 
                     ? 'bg-transparent border border-white/20 text-white hover:border-red-500 hover:text-red-500' 
                     : connectionState === 'pending_sent'
                     ? 'bg-transparent border border-white/20 text-white/70 hover:border-red-500 hover:text-red-500'
                     : connectionState === 'pending_received'
-                    ? 'bg-blue-600 text-white hover:bg-blue-700'
-                    : 'bg-[#8FAAFF] text-[#0C0E14] hover:bg-white'
+                    ? 'bg-emerald-500 text-white hover:bg-emerald-600 shadow-lg shadow-emerald-500/20'
+                    : 'bg-white text-[#0C0E14] hover:bg-white/90 shadow-lg shadow-white/10'
                 }`}
               >
                 {connecting ? <Loader2 size={16} className="animate-spin" /> : null}
@@ -255,27 +273,11 @@ export default function UserProfilePage() {
                  connectionState === 'pending_sent' ? 'Pending Request' :
                  connectionState === 'pending_received' ? 'Accept Request' : 'Connect'}
               </button>
-            )}
-          </div>
-
-          <div>
-            <div className="flex items-start justify-between">
-              <div>
-                <div className="flex items-center gap-2">
-                  <h2 className="text-2xl font-bold text-white">{profile.display_name}</h2>
-                  {profile.is_verified && <BadgeCheck size={20} className="text-[#0052FF]" fill="currentColor" stroke="#1A1B22" strokeWidth={1} />}
-                </div>
-                <p className="text-[#8E909E] text-sm mb-4">@{profile.username}</p>
-              </div>
             </div>
-
-            <div className="flex flex-wrap gap-4 text-sm text-[#C4C5D5] mb-4">
-              <Link href={`/profile/${id}/connections`} className="flex items-center gap-1.5 hover:underline">
-                <Users size={16} className="text-[#8FAAFF]" />
-                <span className="font-semibold text-[#8FAAFF]">{connectionCount}</span> <span className="text-[#8FAAFF]">Connections</span>
-              </Link>
-            </div>
-
+          )}
+        </div>
+        
+        <div className="mb-8">
             {profile.bio && (
               <p className="text-[#E2E1EB] text-sm leading-relaxed whitespace-pre-wrap mt-2 mb-4 p-4 bg-white/5 rounded-2xl border border-white/5">
                 {profile.bio}
@@ -287,7 +289,6 @@ export default function UserProfilePage() {
             </div>
           </div>
         </div>
-      </div>
 
       {/* Tabs */}
       <div className="flex overflow-x-auto scrollbar-hide gap-8 border-b border-white/5 mb-6 px-4">

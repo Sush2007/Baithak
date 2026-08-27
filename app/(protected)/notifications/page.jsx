@@ -278,32 +278,34 @@ export default function NotificationsPage() {
               <div 
                 key={notification.id} 
                 onClick={() => handleNotificationClick(notification)}
-                className={`bg-[#1A1B22] border border-white/5 rounded-2xl p-5 hover:border-white/10 transition-colors relative flex gap-4 cursor-pointer ${!notification.is_read ? 'bg-white/[0.03]' : ''}`}
+                className={`bg-transparent sm:bg-[#1A1B22] border-b border-white/5 sm:border sm:rounded-2xl p-4 sm:p-5 hover:bg-[#1E1F27] transition-all duration-300 relative flex gap-4 cursor-pointer group active:scale-[0.98] sm:active:scale-100 ${!notification.is_read ? 'bg-[#003B95]/10 sm:bg-[#003B95]/10' : ''}`}
               >
                 {/* Unread Indicator */}
                 {!notification.is_read && (
-                  <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-1.5 bg-blue-500 rounded-r-full" />
+                  <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-10 bg-blue-500 rounded-r-full shadow-[0_0_10px_rgba(59,130,246,0.5)]" />
                 )}
 
                 {/* Actor Avatar or Icon */}
-                <div className={`relative w-10 h-10 rounded-full flex items-center justify-center shrink-0 border border-white/10 overflow-hidden ${notification.actor?.avatar_url ? '' : bg} ${color}`}>
+                <div className={`relative w-11 h-11 sm:w-12 sm:h-12 rounded-full flex items-center justify-center shrink-0 border-2 border-[#1E1F27] ring-2 ring-white/5 shadow-inner overflow-hidden ${notification.actor?.avatar_url ? '' : bg} ${color}`}>
                   {notification.actor?.avatar_url ? (
                     <Image src={notification.actor.avatar_url} alt="actor" fill className="object-cover" />
                   ) : (
-                    <Icon size={18} />
+                    <Icon size={20} />
                   )}
                   {notification.actor?.avatar_url && (
-                    <div className={`absolute -bottom-1 -right-1 w-5 h-5 rounded-full ${bg} ${color} flex items-center justify-center border-2 border-[#1A1B22]`}>
+                    <div className={`absolute -bottom-1 -right-1 w-5 h-5 rounded-full ${bg} ${color} flex items-center justify-center border-2 border-[#1A1B22] shadow-sm`}>
                       <Icon size={10} />
                     </div>
                   )}
                 </div>
 
                 {/* Content */}
-                <div className="flex-1 pt-1">
-                  <div className="flex justify-between items-start mb-2">
-                    {renderContent(notification)}
-                    <span className="text-xs text-white/40 shrink-0 ml-4">{timeAgo(notification.created_at)}</span>
+                <div className="flex-1 pt-0.5">
+                  <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start mb-2 gap-1 sm:gap-4">
+                    <div className="flex-1">
+                      {renderContent(notification)}
+                    </div>
+                    <span className="text-[11px] font-medium text-[#8E909E] shrink-0">{timeAgo(notification.created_at)}</span>
                   </div>
                 </div>
 

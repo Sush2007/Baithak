@@ -84,7 +84,8 @@ const DashboardPageClient = ({ initialPosts = [], initialTags = ['All'] }) => {
       if (loading || loadingMore || !hasMore) return;
       
       const scrollPosition = window.innerHeight + window.scrollY;
-      const threshold = document.documentElement.scrollHeight - 800; // Load 800px before bottom
+      // Load 2500px before bottom (roughly 4-5 posts early) for a truly seamless infinite scroll
+      const threshold = document.documentElement.scrollHeight - 2500; 
       
       if (scrollPosition >= threshold) {
         loadMore();

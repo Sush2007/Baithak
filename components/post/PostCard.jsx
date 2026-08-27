@@ -25,6 +25,22 @@ const timeAgo = (dateStr) => {
   return "just now";
 };
 
+const getTagColor = (tag) => {
+  const colors = [
+    'text-red-400 bg-red-400/10',
+    'text-blue-400 bg-blue-400/10',
+    'text-green-400 bg-green-400/10',
+    'text-purple-400 bg-purple-400/10',
+    'text-pink-400 bg-pink-400/10',
+    'text-yellow-400 bg-yellow-400/10',
+    'text-indigo-400 bg-indigo-400/10',
+    'text-cyan-400 bg-cyan-400/10'
+  ];
+  let hash = 0;
+  for (let i = 0; i < tag.length; i++) hash = tag.charCodeAt(i) + ((hash << 5) - hash);
+  return colors[Math.abs(hash) % colors.length];
+};
+
 const PostCard = ({ post, onReport, onQuickProfile, onDelete, priority = false }) => {
   const { user, profile } = useAuth();
   const router = useRouter();
@@ -99,8 +115,15 @@ const PostCard = ({ post, onReport, onQuickProfile, onDelete, priority = false }
     setTimeout(() => setShowDoubleTapHeart(false), 800);
   };
 
+  const triggerHaptic = () => {
+    if (typeof navigator !== 'undefined' && navigator.vibrate) {
+      navigator.vibrate(50);
+    }
+  };
+
   const handleLike = () => {
     if (!user) return;
+    triggerHaptic();
     
     // Optimistic update
     const wasLiked = isLiked;
@@ -194,6 +217,7 @@ const PostCard = ({ post, onReport, onQuickProfile, onDelete, priority = false }
 
   const handleMarkAsBestAnswer = async (replyId) => {
     if (!window.confirm('Mark this as the Best Response? This will close the discussion.')) return;
+    triggerHaptic();
     setIsSubmitting(true);
     try {
       // Mark the comment and post via secure RPC
@@ -394,12 +418,12 @@ const PostCard = ({ post, onReport, onQuickProfile, onDelete, priority = false }
     const upvotesCount = reply.comment_upvotes?.length || 0;
     
     return (
-      <div key={reply.id} className={`relative ${isNested ? 'mt-3' : 'mt-4 pt-4 border-t border-white/5'}`}>
+      <div key={reply.id} className={`relative transition-all duration-300 ${isNested ? 'mt-3' : 'mt-4 pt-4 border-t border-white/5'} ${reply.is_best_answer ? 'bg-gradient-to-r from-emerald-500/15 via-emerald-500/5 to-transparent border-l-4 border-l-emerald-500 rounded-r-xl p-3 -ml-3 shadow-[inset_0_1px_0_0_rgba(16,185,129,0.1)]' : ''}`}>
         <div className="flex gap-3 group relative z-10">
           <div className="shrink-0 pt-1">
             <div 
               onClick={(e) => { e.stopPropagation(); onQuickProfile && onQuickProfile(reply.author_id); }}
-              className="relative w-8 h-8 rounded-full overflow-hidden cursor-pointer border border-white/10 hover:border-white/30 transition-all"
+              className={`relative w-8 h-8 rounded-full overflow-hidden cursor-pointer border transition-all ${reply.is_best_answer ? 'border-emerald-500 ring-2 ring-emerald-500/20' : 'border-white/10 hover:border-white/30'}`}
             >
               {reply.profiles?.avatar_url ? (
                 <img src={reply.profiles.avatar_url} alt={reply.profiles.display_name} className="w-full h-full object-cover" />
@@ -422,8 +446,9 @@ const PostCard = ({ post, onReport, onQuickProfile, onDelete, priority = false }
               </div>
               
               {reply.is_best_answer && (
-                <span className="bg-[#00E5FF]/10 text-[#00E5FF] border border-[#00E5FF]/20 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider flex items-center gap-1 shrink-0">
-                  Best Response
+                <span className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-[10px] font-extrabold px-2.5 py-0.5 rounded-full uppercase tracking-wider flex items-center gap-1.5 shrink-0 shadow-[0_0_10px_rgba(16,185,129,0.2)]">
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                  Verified Solution
                 </span>
               )}
             </div>
@@ -529,7 +554,7 @@ const PostCard = ({ post, onReport, onQuickProfile, onDelete, priority = false }
     <article 
       ref={postRef} 
       onDoubleClick={handleDoubleClick}
-        className={`bg-[#1A1B22] border-b border-white/5 sm:border sm:rounded-2xl p-4 sm:p-5 hover:bg-[#1E1F27] transition-all duration-300 cursor-pointer group relative overflow-hidden shadow-lg shadow-black/20 ${post.isOptimistic ? 'opacity-70 pointer-events-none' : 'opacity-100'}`}
+      className={`bg-[#1A1B22] border-b border-white/5 sm:border sm:rounded-2xl p-4 sm:p-5 active:scale-[0.98] sm:active:scale-100 sm:hover:-translate-y-0.5 sm:hover:shadow-2xl sm:hover:bg-[#1E1F27] transition-all duration-300 cursor-pointer group relative overflow-hidden shadow-lg shadow-black/20 ${post.isOptimistic ? 'opacity-70 pointer-events-none' : 'opacity-100'}`}
     >
       <style jsx>{`
           @keyframes popIn {
@@ -560,26 +585,29 @@ const PostCard = ({ post, onReport, onQuickProfile, onDelete, priority = false }
         <div className="flex items-center gap-3">
           <div 
             onClick={(e) => { e.stopPropagation(); onQuickProfile && onQuickProfile(post.author_id); }}
-              onMouseEnter={() => router.prefetch(`/profile/${post.author_id}`)}
-            className="relative w-10 h-10 rounded-full overflow-hidden shrink-0 cursor-pointer border border-white/10 hover:border-white/30 transition-all"
+            onMouseEnter={() => router.prefetch(`/profile/${post.author_id}`)}
+            className="relative w-11 h-11 rounded-full overflow-hidden shrink-0 cursor-pointer border-2 border-transparent ring-2 ring-white/5 hover:ring-white/20 transition-all shadow-inner"
           >
             {post.profiles?.avatar_url ? (
               <Image src={post.profiles.avatar_url} alt={post.profiles.display_name} fill className="object-cover" priority={priority} />
             ) : (
-              <div className="w-full h-full bg-gradient-to-tr from-[#8A2387] to-[#F27121] flex items-center justify-center text-sm">👤</div>
+              <div className="w-full h-full bg-gradient-to-tr from-[#8A2387] via-[#E2336B] to-[#F27121] flex items-center justify-center text-sm shadow-inner">👤</div>
             )}
           </div>
           <div>
-            <div className="flex items-center gap-1.5 flex-wrap">
+            <div className="flex flex-col justify-center">
               <span 
                 onClick={(e) => { e.stopPropagation(); onQuickProfile && onQuickProfile(post.author_id); }}
-              onMouseEnter={() => router.prefetch(`/profile/${post.author_id}`)}
-                className="font-bold text-[15px] text-white hover:underline cursor-pointer"
+                onMouseEnter={() => router.prefetch(`/profile/${post.author_id}`)}
+                className="font-extrabold text-[15px] sm:text-[16px] text-white hover:text-blue-400 cursor-pointer transition-colors"
               >
                 {post.profiles?.display_name || 'Anonymous'}
               </span>
-              <span className="text-[15px] text-[#8E909E]">@{post.profiles?.username || 'unknown'}</span>
-              <span className="text-[15px] text-[#8E909E]">· {timeAgo(post.created_at)}</span>
+              <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
+                <span className="text-[13px] font-medium text-[#8E909E]">@{post.profiles?.username || 'unknown'}</span>
+                <span className="text-[10px] text-white/20">•</span>
+                <span className="text-[13px] font-medium text-[#8E909E]">{timeAgo(post.created_at)}</span>
+              </div>
             </div>
           </div>
         </div>
@@ -650,14 +678,17 @@ const PostCard = ({ post, onReport, onQuickProfile, onDelete, priority = false }
               Hot Topic
             </span>
           )}
-          {post.tags?.filter(t => t !== 'hot').map(tag => (
-            <span key={tag} className="text-[10px] text-blue-400 font-medium">#{tag}</span>
-          ))}
+          {post.tags?.filter(t => t !== 'hot').map(tag => {
+            const tagColor = getTagColor(tag);
+            return (
+              <span key={tag} className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full ${tagColor}`}>#{tag}</span>
+            );
+          })}
         </div>
 
-        <h3 className="text-[20px] font-extrabold text-white leading-tight mb-1">{post.title}</h3>
-        <div className={`relative ${!isExpanded && isLongText ? 'max-h-[120px] overflow-hidden' : ''}`}>
-            <p className="text-[15px] text-white/80 leading-relaxed whitespace-pre-wrap">
+        <h3 className="text-[22px] sm:text-[26px] font-black text-transparent bg-clip-text bg-gradient-to-br from-white via-white to-white/50 leading-[1.15] mb-2.5 tracking-tight">{post.title}</h3>
+        <div className={`relative ${!isExpanded && isLongText ? 'max-h-[140px] overflow-hidden' : ''}`}>
+            <p className="text-[15px] sm:text-[17px] text-[#C4C5D5] leading-[1.6] whitespace-pre-wrap font-medium">
           {post.content?.split(/((?:https?:\/\/[^\s]+)|(?:#\w+))/g).map((part, i) => {
             if (part.match(/(https?:\/\/[^\s]+)/)) {
               return <a key={i} href={part} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()} className="text-blue-400 hover:underline">{part}</a>;
@@ -668,7 +699,7 @@ const PostCard = ({ post, onReport, onQuickProfile, onDelete, priority = false }
           })}
         </p>
             {!isExpanded && isLongText && (
-              <div className="absolute bottom-0 left-0 right-0 h-20 bg-gradient-to-t from-[#1A1B22] via-[#1A1B22]/80 to-transparent pointer-events-none flex items-end">
+              <div className="absolute bottom-0 left-0 right-0 h-20 bg-gradient-to-t from-[#1A1B22] sm:group-hover:from-[#1E1F27] via-[#1A1B22]/80 sm:group-hover:via-[#1E1F27]/80 to-transparent pointer-events-none flex items-end transition-colors duration-300">
               </div>
             )}
           </div>

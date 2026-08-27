@@ -343,51 +343,51 @@ export default function SettingsPage() {
           </div>
 
           {/* Form Fields */}
-          <div className="space-y-4">
-            <div className="space-y-1.5">
-              <label className="text-[11px] font-bold text-[#8E909E] uppercase tracking-wider pl-1">Display Name</label>
+          <div className="space-y-5">
+            <div className="space-y-2">
+              <label className="text-[12px] font-bold text-[#8E909E] uppercase tracking-wider pl-1">Display Name</label>
               <input 
                 type="text" 
                 disabled={!isEditing}
                 value={formData.display_name} 
                 onChange={(e) => setFormData({...formData, display_name: e.target.value})}
-                className="w-full bg-[#0C0E14] border border-white/5 rounded-xl px-4 py-2.5 text-sm text-white/90 outline-none focus:border-white/20 disabled:text-white/50"
+                className="w-full bg-[#0C0E14] border border-white/5 rounded-xl px-4 py-3 text-[15px] font-medium text-white outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 disabled:text-white/40 disabled:bg-[#0C0E14]/50 transition-all"
               />
             </div>
             
-            <div className="space-y-1.5">
-              <label className="text-[11px] font-bold text-[#8E909E] uppercase tracking-wider pl-1 flex items-center justify-between">
+            <div className="space-y-2">
+              <label className="text-[12px] font-bold text-[#8E909E] uppercase tracking-wider pl-1 flex items-center justify-between">
                 <span>Username</span>
-                <span className={`text-[9px] lowercase font-normal border px-1.5 py-0.5 rounded ${canChangeUsername ? 'text-[#8E909E] border-white/10' : 'text-red-400 border-red-500/20 bg-red-500/5'}`}>
+                <span className={`text-[10px] lowercase font-semibold border px-2 py-0.5 rounded-full ${canChangeUsername ? 'text-[#8E909E] border-white/10' : 'text-red-400 border-red-500/20 bg-red-500/10'}`}>
                   {canChangeUsername ? 'change limit: once every 15 days' : `Available in ${daysUntilCanChange} days`}
                 </span>
               </label>
               <div className="relative">
-                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-white/30">@</span>
+                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-white/30 font-medium">@</span>
                 <input 
                   type="text" 
                   disabled={!isEditing || !canChangeUsername}
                   value={formData.username} 
                   onChange={(e) => setFormData({...formData, username: e.target.value})}
-                  className={`w-full bg-[#0C0E14] border border-white/5 rounded-xl pl-8 pr-4 py-2.5 text-sm text-white/90 outline-none focus:border-white/20 disabled:text-white/50 ${(!isEditing || !canChangeUsername) ? 'cursor-not-allowed' : ''}`}
+                  className={`w-full bg-[#0C0E14] border border-white/5 rounded-xl pl-9 pr-4 py-3 text-[15px] font-medium text-white outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 disabled:text-white/40 disabled:bg-[#0C0E14]/50 transition-all ${(!isEditing || !canChangeUsername) ? 'cursor-not-allowed' : ''}`}
                 />
               </div>
             </div>
 
-            <div className="space-y-1.5">
-              <label className="text-[11px] font-bold text-[#8E909E] uppercase tracking-wider pl-1">Bio</label>
+            <div className="space-y-2">
+              <label className="text-[12px] font-bold text-[#8E909E] uppercase tracking-wider pl-1">Bio</label>
               <textarea 
                 disabled={!isEditing}
                 rows={3}
                 value={formData.bio}
                 onChange={(e) => setFormData({...formData, bio: e.target.value})}
-                className="w-full bg-[#0C0E14] border border-white/5 rounded-xl px-4 py-2.5 text-sm text-white/90 outline-none resize-none focus:border-white/20 disabled:text-white/50"
+                className="w-full bg-[#0C0E14] border border-white/5 rounded-xl px-4 py-3 text-[15px] font-medium text-white outline-none resize-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 disabled:text-white/40 disabled:bg-[#0C0E14]/50 transition-all"
               />
             </div>
             
-            <div className="space-y-1.5">
-              <label className="text-[11px] font-bold text-[#8E909E] uppercase tracking-wider pl-1 flex items-center gap-1">
-                <LinkIcon size={12} /> Instagram Link
+            <div className="space-y-2">
+              <label className="text-[12px] font-bold text-[#8E909E] uppercase tracking-wider pl-1 flex items-center gap-1.5">
+                <LinkIcon size={14} className="text-pink-500" /> Instagram Link
               </label>
               <input 
                 type="url" 
@@ -395,13 +395,13 @@ export default function SettingsPage() {
                 placeholder="https://instagram.com/yourusername"
                 value={formData.instagram_url}
                 onChange={(e) => setFormData({...formData, instagram_url: e.target.value})}
-                className="w-full bg-[#0C0E14] border border-white/5 rounded-xl px-4 py-2.5 text-sm text-white/90 outline-none focus:border-white/20 disabled:text-white/50"
+                className="w-full bg-[#0C0E14] border border-white/5 rounded-xl px-4 py-3 text-[15px] font-medium text-white placeholder:text-white/20 outline-none focus:border-pink-500 focus:ring-2 focus:ring-pink-500/20 disabled:text-white/40 disabled:bg-[#0C0E14]/50 transition-all"
               />
             </div>
-
-            <div className="space-y-1.5">
-              <label className="text-[11px] font-bold text-[#8E909E] uppercase tracking-wider pl-1 flex items-center gap-1">
-                <LinkIcon size={12} /> LinkedIn Link
+            
+            <div className="space-y-2">
+              <label className="text-[12px] font-bold text-[#8E909E] uppercase tracking-wider pl-1 flex items-center gap-1.5">
+                <LinkIcon size={14} className="text-blue-500" /> LinkedIn Link
               </label>
               <input 
                 type="url" 
@@ -409,7 +409,7 @@ export default function SettingsPage() {
                 placeholder="https://linkedin.com/in/yourusername"
                 value={formData.linkedin_url}
                 onChange={(e) => setFormData({...formData, linkedin_url: e.target.value})}
-                className="w-full bg-[#0C0E14] border border-white/5 rounded-xl px-4 py-2.5 text-sm text-white/90 outline-none focus:border-white/20 disabled:text-white/50"
+                className="w-full bg-[#0C0E14] border border-white/5 rounded-xl px-4 py-3 text-[15px] font-medium text-white placeholder:text-white/20 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 disabled:text-white/40 disabled:bg-[#0C0E14]/50 transition-all"
               />
             </div>
           </div>
