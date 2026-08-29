@@ -253,12 +253,6 @@ const LandingPageClient = () => {
               How It Works
             </a>
 
-            <Link
-              href="/about"
-              className="text-sm font-semibold px-4 py-1.5 rounded-full border border-transparent text-on-surface-variant hover:text-on-surface hover:border-accent-yellow/30 hover:bg-accent-yellow/5 transition-all duration-300 cursor-pointer bg-transparent"
-            >
-              About Us
-            </Link>
           </div>
           <div className="flex gap-3">
           </div>
@@ -330,13 +324,6 @@ const LandingPageClient = () => {
                   How It Works
                 </a>
 
-                <Link 
-                  href="/about"
-                  onClick={() => setMobileMenuOpen(false)}
-                  className="text-sm font-semibold px-4 py-2 rounded-full border border-transparent text-on-surface-variant hover:text-on-surface hover:border-accent-yellow/30 hover:bg-accent-yellow/5 transition-all duration-300 cursor-pointer bg-transparent text-left block"
-                >
-                  About Us
-                </Link>
               </nav>
             </div>
             
@@ -692,7 +679,6 @@ const LandingPageClient = () => {
               <Image src="/logo.png" alt="Baithak Logo" width={150} height={42} className="w-auto h-8" />
             </div>
             <div className="flex flex-wrap gap-8 text-[11px] font-bold text-on-surface-variant/50 items-center justify-center">
-              <Link href="/about" className="hover:text-accent-yellow transition-colors cursor-pointer font-bold bg-transparent border-0">About Us</Link>
               <Link href="/privacy" className="hover:text-accent-yellow transition-colors cursor-pointer font-bold bg-transparent border-0">Privacy Policy</Link>
               <Link href="/terms" className="hover:text-accent-yellow transition-colors cursor-pointer font-bold bg-transparent border-0">Terms of Service</Link>
               <a href="https://www.instagram.com/baithak.ig/" target="_blank" rel="noopener noreferrer" className="hover:text-accent-yellow transition-colors">Instagram</a>

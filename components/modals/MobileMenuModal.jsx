@@ -10,7 +10,6 @@ const MENU_ITEMS = [
   { label: 'Events', href: '/events', icon: Calendar },
   { label: 'Settings', href: '/settings', icon: Settings },
   { label: 'Support', href: '/support', icon: HelpCircle },
-  { label: 'About Us', href: '/about', icon: Info },
 ];
 
 export default function MobileMenuModal({ isOpen, onClose }) {

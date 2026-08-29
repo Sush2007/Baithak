@@ -5,7 +5,6 @@ export default function robots() {
         userAgent: '*',
         allow: [
           '/',
-          '/about',
           '/privacy',
           '/terms',
           '/post/',   // public discussion posts must be crawlable
