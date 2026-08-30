@@ -18,9 +18,38 @@ import { usePathname } from 'next/navigation';
  *   "public-optional" → anyone can view (hybrid pages like /terms)
  */
 const ProtectedRoute = ({ children, type = 'protected' }) => {
-  const { user, profile, loading } = useAuth();
+  const { user, profile, loading, refreshProfile } = useAuth();
   const pathname = usePathname();
   const redirecting = useRef(false);
+  const retryTimer = useRef(null);
+
+  // ── Profile recovery: if user exists but profile is null after loading,
+  //    retry fetching the profile. This handles the case where a deleted
+  //    account re-registers and the initial profile fetch fails/times out.
+  useEffect(() => {
+    if (loading || !user || profile) {
+      // Clear any pending retry if we got a profile or are still loading
+      if (retryTimer.current) {
+        clearTimeout(retryTimer.current);
+        retryTimer.current = null;
+      }
+      return;
+    }
+
+    // user exists but profile is null — schedule a retry
+    console.warn('[ProtectedRoute] User exists but profile is null — scheduling retry...');
+    retryTimer.current = setTimeout(() => {
+      console.log('[ProtectedRoute] Retrying profile fetch...');
+      refreshProfile();
+    }, 1500);
+
+    return () => {
+      if (retryTimer.current) {
+        clearTimeout(retryTimer.current);
+        retryTimer.current = null;
+      }
+    };
+  }, [user, profile, loading, refreshProfile]);
 
   useEffect(() => {
     if (loading || redirecting.current) return;
@@ -83,6 +112,17 @@ const ProtectedRoute = ({ children, type = 'protected' }) => {
   // Don't render protected content for unauthenticated users
   if (!user && type !== 'public-only' && type !== 'public-optional') {
     return null;
+  }
+
+  // User exists but profile hasn't loaded yet (null) — show spinner
+  // This prevents children from rendering with a null profile and crashing,
+  // and covers the case where a re-registered user's profile fetch initially fails.
+  if (user && !profile && (type === 'protected' || type === 'onboarding-only')) {
+    return (
+      <div className="fixed inset-0 bg-[#0C0E14] z-[9999] flex items-center justify-center">
+        <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+      </div>
+    );
   }
 
   // Don't flash protected content while being redirected to profile-setup

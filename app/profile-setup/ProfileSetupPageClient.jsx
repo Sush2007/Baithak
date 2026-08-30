@@ -297,7 +297,12 @@ const ProfileSetupPageClient = ({ siteKey }) => {
         throw new Error(data.error || 'Failed saving onboarding profile details.');
       }
 
-      // 4. Force hard redirect to hit Edge Middleware and guarantee server state sync
+      // Refresh the profile in AuthContext before navigating.
+      // This updates the client-side state so ProtectedRoute sees
+      // setup_completed=true immediately, preventing any redirect loop.
+      await refreshProfile();
+
+      // Force hard redirect to hit Edge Middleware and guarantee server state sync
       window.location.href = '/dashboard';
 
     } catch (err) {

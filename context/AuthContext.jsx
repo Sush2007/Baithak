@@ -48,8 +48,14 @@ export const AuthProvider = ({ children }) => {
       if (err.message?.includes('JWT expired') || err.message?.includes('Auth session missing')) {
         console.warn('JWT expired, signing out forcefully...');
         supabase.auth.signOut();
+        return null;
       }
-      return null;
+      // For all other errors (timeout, network, RLS, etc.), return fallback
+      // onboarding state so the user gets routed to profile-setup instead
+      // of being stuck. This is critical for re-registered (deleted) accounts
+      // where the initial profile fetch may fail transiently.
+      console.warn('Profile fetch failed, returning fallback onboarding state for user:', userId);
+      return { id: userId, setup_completed: false };
     }
   }, []);
 

@@ -70,7 +70,7 @@ export const metadata = {
     type: 'website',
     images: [
       {
-        url: '/og-image.png',
+        url: '/logo.png',
         width: 1200,
         height: 630,
         alt: 'Baithak — VSSUT Student Discussion Platform',
@@ -82,7 +82,7 @@ export const metadata = {
     title: 'Baithak - VSSUT Student Discussion Platform',
     description:
       'The official student-centered discussion platform for VSSUT, Burla. Ask questions, share resources, connect with seniors.',
-    images: ['/og-image.png'],
+    images: ['/logo.png'],
   },
 };
 
@@ -236,6 +236,11 @@ export default function RootLayout({ children }) {
   return (
     <html lang="en" className={plusJakartaSans.className}>
       <head>
+        <meta property="og:title" content="Baithak - VSSUT Student Discussion Platform" />
+        <meta property="og:description" content="The official student-centered discussion platform for Veer Surendra Sai University of Technology (VSSUT), Burla." />
+        <meta property="og:image" content="https://baithakpe.com/logo.png" />
+        <meta property="og:url" content="https://baithakpe.com" />
+        <meta property="og:type" content="website" />
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
