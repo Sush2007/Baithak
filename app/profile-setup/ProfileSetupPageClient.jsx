@@ -10,6 +10,7 @@ import Button from '../../components/ui/Button';
 import ProtectedRoute from '../../components/ProtectedRoute';
 import Image from 'next/image';
 import Link from 'next/link';
+import Script from 'next/script';
 
 const R2_BASE_URL = (process.env.NEXT_PUBLIC_R2_URL || 'https://pub-a45e2aa5add24ba0a8813221a09a64a9.r2.dev').replace(/\/$/, '');
 
@@ -89,7 +90,7 @@ const SwipeToSubmit = ({ isSubmitting, disabled, onSubmit }) => {
   );
 };
 
-const ProfileSetupPageClient = () => {
+const ProfileSetupPageClient = ({ siteKey }) => {
   const { user, session, profile, signOut, refreshProfile } = useAuth();
 
   const [username, setUsername] = useState('');
@@ -198,6 +199,9 @@ const ProfileSetupPageClient = () => {
     setSubmitError('');
     setIsSubmitting(true);
     
+    const formData = new FormData(e.target);
+    const turnstileToken = formData.get('cf-turnstile-response');
+
     const errorMsg = validateUsername(username);
     if (errorMsg || !username || !displayName) {
       if (errorMsg) setUsernameError(errorMsg);
@@ -205,7 +209,29 @@ const ProfileSetupPageClient = () => {
       return;
     }
 
+    if (!turnstileToken) {
+      setSubmitError('Please complete the captcha verification.');
+      setIsSubmitting(false);
+      return;
+    }
+
     try {
+      // 0. Verify Turnstile token
+      const verifyRes = await fetch('/api/v1/verify-turnstile', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ token: turnstileToken })
+      });
+      
+      const verifyData = await verifyRes.json();
+      if (!verifyData.success) {
+        setSubmitError('Captcha verification failed. Please try again.');
+        setIsSubmitting(false);
+        return;
+      }
+
       // 1. Verify Username Uniqueness
       const { data: existingUser, error: checkError } = await supabase
         .from('profiles')
@@ -289,6 +315,7 @@ const ProfileSetupPageClient = () => {
 
   return (
     <ProtectedRoute type="onboarding-only">
+      <Script src="https://challenges.cloudflare.com/turnstile/v0/api.js" strategy="afterInteractive" />
       <div className="min-h-screen bg-[#0C0E14] text-white font-body flex flex-col items-center justify-center py-12 px-6 select-none relative overflow-hidden">
         {/* Subtle SVG Noise Grain */}
         <div className="noise-overlay"></div>
@@ -474,6 +501,7 @@ const ProfileSetupPageClient = () => {
                     </>
                   )}
                 </button>
+                <div className="cf-turnstile" data-sitekey={siteKey}></div>
 
                 {/* Mobile Swipe to Submit (Hidden on Desktop) */}
                 <SwipeToSubmit 

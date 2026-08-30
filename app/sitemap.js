@@ -12,12 +12,6 @@ export default async function sitemap() {
       priority: 1.0,
     },
     {
-      url: 'https://baithakpe.com/about',
-      lastModified: new Date(),
-      changeFrequency: 'monthly',
-      priority: 0.8,
-    },
-    {
       url: 'https://baithakpe.com/privacy',
       lastModified: new Date(),
       changeFrequency: 'yearly',
