@@ -1,10 +1,23 @@
 "use client";
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useRouter, usePathname } from 'next/navigation';
 
 const ProtectedRoute = ({ children, type = 'protected' }) => {
-  const { user, loading } = useAuth();
+  const { user, profile, loading } = useAuth();
+  const router = useRouter();
+  const pathname = usePathname();
+
+  useEffect(() => {
+    if (!loading && user && profile) {
+      if (profile.setup_completed === false && !pathname.startsWith('/profile-setup')) {
+        router.push('/profile-setup');
+      } else if (profile.setup_completed === true && pathname.startsWith('/profile-setup')) {
+        router.push('/dashboard');
+      }
+    }
+  }, [user, profile, loading, router, pathname]);
 
   if (loading) {
     // Show a sleek loader to prevent UI flashing while AuthContext hydrates
@@ -15,11 +28,14 @@ const ProtectedRoute = ({ children, type = 'protected' }) => {
     );
   }
 
-  // Middleware guarantees that if user is on this route, they belong here.
-  // We just ensure we don't render protected content to a completely unauthenticated client 
-  // (though middleware covers this too, this prevents momentary client hydration mismatches)
+  // We ensure we don't render protected content to a completely unauthenticated client 
   if (!user && type !== 'public-only' && type !== 'public-optional') {
      return null;
+  }
+
+  // Don't render the content if they are being redirected
+  if (user && profile?.setup_completed === false && !pathname.startsWith('/profile-setup')) {
+    return null;
   }
 
   return <>{children}</>;

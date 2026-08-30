@@ -281,18 +281,21 @@ const ProfileSetupPageClient = ({ siteKey }) => {
       }
 
 
-      // 3. Save profile and complete onboarding
-      const { error: updateError } = await supabase
-        .from('profiles')
-        .upsert({
-          id: user.id,
+      // 3. Save profile and complete onboarding via Server API (Bypasses RLS issues for recreated accounts)
+      const res = await fetch('/api/profile/onboard', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
           username,
           display_name: displayName,
-          avatar_url: finalAvatarUrl,
-          setup_completed: true
-        });
+          avatar_url: finalAvatarUrl
+        })
+      });
 
-      if (updateError) throw updateError;
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed saving onboarding profile details.');
+      }
 
       // 4. Force hard redirect to hit Edge Middleware and guarantee server state sync
       window.location.href = '/dashboard';

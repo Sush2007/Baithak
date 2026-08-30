@@ -178,7 +178,9 @@ const DashboardPageClient = ({ initialPosts = [], initialTags = ['All'] }) => {
         // Only fetch all tags once on initial load (for the tag filter UI)
         // Skip if we already have tags from SSR
         if (activeTagFilter === 'All' && dynamicTags.length <= 1) {
-           const { data: allTagsData } = await supabase.from('posts').select('tags');
+           // Optimization: Limit to the 50 most recent posts so we don't do a full table scan 
+           // and download massive JSON payloads which takes 10+ seconds
+           const { data: allTagsData } = await supabase.from('posts').select('tags').order('created_at', { ascending: false }).limit(50);
            const tagsSet = new Set();
            allTagsData?.forEach(p => {
              if (p.tags && Array.isArray(p.tags)) {

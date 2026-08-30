@@ -134,6 +134,13 @@ const PostCard = ({ post, onReport, onQuickProfile, onDelete, priority = false }
     if (wasLiked) {
       supabase.from('likes').delete().eq('post_id', post.id).eq('user_id', user.id).then(({error}) => {
         if (error) { setIsLiked(true); setLikesCount(prev => prev + 1); }
+        else {
+          fetch('/api/honor/award', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ actionType: 'RECEIVE_UPVOTE', points: -2, referenceId: post.id })
+          }).catch(console.error);
+        }
       });
     } else {
       supabase.from('likes').insert({ post_id: post.id, user_id: user.id }).then(({error}) => {
@@ -159,6 +166,13 @@ const PostCard = ({ post, onReport, onQuickProfile, onDelete, priority = false }
     if (wasBookmarked) {
       supabase.from('bookmarks').delete().eq('post_id', post.id).eq('user_id', user.id).then(({error}) => {
         if (error) setIsBookmarked(true);
+        else {
+          fetch('/api/honor/award', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ actionType: 'BOOKMARK', points: -1, referenceId: post.id })
+          }).catch(console.error);
+        }
       });
     } else {
       supabase.from('bookmarks').insert({ post_id: post.id, user_id: user.id }).then(({error}) => {
@@ -194,6 +208,13 @@ const PostCard = ({ post, onReport, onQuickProfile, onDelete, priority = false }
       if (error) {
         console.error(error);
         alert('Failed to delete post. Please refresh the page.');
+      } else {
+        // Deduct points for removing the post
+        fetch('/api/honor/award', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ actionType: 'POST_CREATE', points: -3, referenceId: post.id })
+        }).catch(console.error);
       }
     });
     setOpenDropdownId(false);
@@ -405,6 +426,13 @@ const PostCard = ({ post, onReport, onQuickProfile, onDelete, priority = false }
       if (error) {
         console.error('Error deleting reply:', error);
         fetchReplies();
+      } else {
+        // Deduct points for removing the reply
+        fetch('/api/honor/award', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ actionType: 'HELPFUL_REPLY', points: -3, referenceId: post.id })
+        }).catch(console.error);
       }
     } catch (err) {
       console.error('Error deleting reply:', err);
