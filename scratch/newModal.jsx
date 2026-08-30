@@ -126,10 +126,8 @@ export default function OpenDiscussionModal({ isOpen, onClose }) {
       return;
     }
     
-    // Check file size limits (images max 30MB, videos max 100MB)
-    const maxLimit = file.type.startsWith('video/') ? 100 * 1024 * 1024 : 30 * 1024 * 1024;
-    if (file.size > maxLimit) {
-      toast.error(`File size exceeds ${file.type.startsWith('video/') ? '100MB' : '30MB'} limit.`);
+    if (file.size > 30 * 1024 * 1024) {
+      toast.error("File size exceeds 30MB limit.");
       return;
     }
 
@@ -497,7 +495,7 @@ export default function OpenDiscussionModal({ isOpen, onClose }) {
               <div className="flex gap-3">
                 <label className="flex items-center gap-2 px-4 py-4 sm:py-3 bg-[#0C0E14] border border-white/10 border-dashed rounded-lg text-sm text-white/70 hover:bg-white/5 hover:text-white hover:border-white/30 cursor-pointer transition-all w-full justify-center">
                   <UploadCloud size={18} className="text-[#0052FF]" />
-                  <span className="font-medium text-center">Upload Image (Max 30MB) or Video (Max 100MB)</span>
+                  <span className="font-medium text-center">Upload Image or Video</span>
                   <input type="file" accept="image/*,video/*" className="hidden" onChange={handleMediaUpload} />
                 </label>
               </div>

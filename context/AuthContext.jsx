@@ -1,7 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { supabase } from '../lib/supabaseClient';
 
 const AuthContext = createContext({
@@ -15,14 +14,13 @@ const AuthContext = createContext({
 });
 
 export const AuthProvider = ({ children }) => {
-  const router = useRouter();
   const [session, setSession] = useState(null);
   const [user, setUser] = useState(null);
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
 
   // Fetch the public profile record for the authenticated user
-  const fetchProfile = async (userId) => {
+  const fetchProfile = useCallback(async (userId) => {
     try {
       const fetchPromise = supabase
         .from('profiles')
@@ -53,16 +51,16 @@ export const AuthProvider = ({ children }) => {
       }
       return null;
     }
-  };
+  }, []);
 
-  const refreshProfile = async () => {
+  const refreshProfile = useCallback(async () => {
     if (user?.id) {
       const updatedProfile = await fetchProfile(user.id);
       if (updatedProfile) {
         setProfile(updatedProfile);
       }
     }
-  };
+  }, [user, fetchProfile]);
 
   useEffect(() => {
     let isMounted = true;
@@ -104,6 +102,10 @@ export const AuthProvider = ({ children }) => {
         console.log("[AuthContext] Auth state changed:", event);
         if (!isMounted || event === 'INITIAL_SESSION') return; 
 
+        // Pure state management — NO redirects.
+        // Routing decisions are handled exclusively by:
+        //   1. Server-side: auth callback route + middleware
+        //   2. Client-side: ProtectedRoute component
         setSession(currentSession);
         setUser(currentSession?.user || null);
 
@@ -125,7 +127,7 @@ export const AuthProvider = ({ children }) => {
       isMounted = false;
       if (subscription) subscription.unsubscribe();
     };
-  }, []);
+  }, [fetchProfile]);
 
   const signInWithGoogle = async () => {
     try {
@@ -157,8 +159,9 @@ export const AuthProvider = ({ children }) => {
       setUser(null);
       setProfile(null);
       setLoading(false);
-      router.refresh();
-      router.replace('/');
+      // Sign-out is the ONE user-initiated redirect we handle here.
+      // Hard redirect to ensure all server/client state is fully cleared.
+      window.location.href = '/';
     }
   };
 

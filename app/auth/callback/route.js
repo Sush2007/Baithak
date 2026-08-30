@@ -61,7 +61,20 @@ export async function GET(request) {
 
       const response = NextResponse.redirect(redirectUrl);
 
-      // Apply all cookies to the response securely
+      // ── Auth Redirect Cookie Relay ──────────────────────────────────────
+      // Set a short-lived, HttpOnly, single-use verification cookie that tells
+      // the middleware "this redirect came from the auth callback — trust the
+      // session cookies I'm carrying." The middleware will consume this on the
+      // very next request and delete it.
+      response.cookies.set('__auth_redirect', '1', {
+        path: '/',
+        httpOnly: true,
+        secure: !isLocalEnv,
+        sameSite: 'lax',
+        maxAge: 60, // 60 seconds — more than enough for a single redirect hop
+      });
+
+      // Apply all session cookies to the response
       sessionCookies.forEach(({ name, value, options }) => {
         // Clean empty domain which can break Next.js cookies
         const safeOptions = { ...options };

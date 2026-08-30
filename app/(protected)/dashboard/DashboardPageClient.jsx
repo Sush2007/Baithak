@@ -190,7 +190,11 @@ const DashboardPageClient = ({ initialPosts = [], initialTags = ['All'] }) => {
            setDynamicTags(['All', ...Array.from(tagsSet)]);
         }
       } else {
-        setPosts(prev => [...prev, ...formattedPosts]);
+        setPosts(prev => {
+          const existingIds = new Set(prev.map(p => p.id));
+          const newUniquePosts = formattedPosts.filter(p => !existingIds.has(p.id));
+          return [...prev, ...newUniquePosts];
+        });
       }
       
       setHasMore(newPosts.length === POSTS_PER_PAGE);
