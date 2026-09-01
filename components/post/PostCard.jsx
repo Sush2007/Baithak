@@ -1,5 +1,6 @@
 "use client";
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 
 
 import React, { useState, useEffect, useRef } from 'react';
@@ -53,6 +54,44 @@ const PostCard = ({ post, onReport, onQuickProfile, onDelete, priority = false }
   const [showDoubleTapHeart, setShowDoubleTapHeart] = useState(false);
   const isLongText = post.content?.length > 250 || post.content?.split('\n').length > 4;
   
+  // Listen for realtime updates dispatched by DashboardPageClient
+  useEffect(() => {
+    const handleRealtimeLike = (e) => {
+      const { new: newRecord, old: oldRecord, eventType } = e.detail;
+      if (eventType === 'INSERT' && newRecord.post_id === post.id) {
+        // Prevent double-counting if the current user just liked it
+        if (newRecord.user_id !== user?.id) {
+          setLikesCount(prev => prev + 1);
+        }
+      } else if (eventType === 'DELETE' && oldRecord.post_id === post.id) {
+        if (oldRecord.user_id !== user?.id) {
+          setLikesCount(prev => Math.max(0, prev - 1));
+        }
+      }
+    };
+
+    const handleRealtimeComment = (e) => {
+      const { new: newRecord, old: oldRecord, eventType } = e.detail;
+      if (eventType === 'INSERT' && newRecord.post_id === post.id) {
+        if (newRecord.author_id !== user?.id) {
+          setRepliesCount(prev => prev + 1);
+        }
+      } else if (eventType === 'DELETE' && oldRecord.post_id === post.id) {
+        if (oldRecord.author_id !== user?.id) {
+          setRepliesCount(prev => Math.max(0, prev - 1));
+        }
+      }
+    };
+
+    window.addEventListener('realtime_like', handleRealtimeLike);
+    window.addEventListener('realtime_comment', handleRealtimeComment);
+
+    return () => {
+      window.removeEventListener('realtime_like', handleRealtimeLike);
+      window.removeEventListener('realtime_comment', handleRealtimeComment);
+    };
+  }, [post.id, user?.id]);
+
   // Replies State
   const [showReplies, setShowReplies] = useState(false);
   const [replies, setReplies] = useState([]);
@@ -350,6 +389,30 @@ const PostCard = ({ post, onReport, onQuickProfile, onDelete, priority = false }
         
       if (error) throw error;
       
+      // Extract mentions and send notifications
+      const mentions = replyContent.match(/@([a-zA-Z0-9_]+)/g);
+      if (mentions && mentions.length > 0) {
+        const uniqueUsernames = [...new Set(mentions.map(m => m.slice(1).toLowerCase()))];
+        const { data: mentionedUsers } = await supabase
+          .from('profiles')
+          .select('id')
+          .in('username', uniqueUsernames);
+          
+        if (mentionedUsers && mentionedUsers.length > 0) {
+          const notifications = mentionedUsers
+            .filter(u => u.id !== user.id)
+            .map(u => ({
+              user_id: u.id,
+              actor_id: user.id,
+              type: 'mention_comment', // mention in comment
+              post_id: post.id // link them to the post
+            }));
+          if (notifications.length > 0) {
+            await supabase.from('notifications').insert(notifications).catch(e => console.error('Mentions error:', e));
+          }
+        }
+      }
+      
       setReplies(prev => [...prev, data]);
       setRepliesCount(prev => prev + 1);
       setReplyContent('');
@@ -505,7 +568,16 @@ const PostCard = ({ post, onReport, onQuickProfile, onDelete, priority = false }
                 </div>
               </div>
             ) : (
-              <p className="text-[14px] text-white/90 leading-relaxed whitespace-pre-wrap break-words">{reply.content}</p>
+              <p className="text-[14px] text-white/90 leading-relaxed whitespace-pre-wrap break-words">
+                {reply.content?.split(/((?:https?:\/\/[^\s]+)|(?:@\w+))/g).map((part, i) => {
+                  if (part.match(/(https?:\/\/[^\s]+)/)) {
+                    return <a key={i} href={part} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()} className="text-blue-400 hover:underline">{part}</a>;
+                  } else if (part.match(/@\w+/)) {
+                    return <Link key={i} href={`/profile/${part}`} onClick={e => e.stopPropagation()} className="text-[#00E5FF] font-medium hover:underline">{part}</Link>;
+                  }
+                  return part;
+                })}
+              </p>
             )}
             
             {/* Interactive mini-actions for replies */}
@@ -717,11 +789,13 @@ const PostCard = ({ post, onReport, onQuickProfile, onDelete, priority = false }
         <h3 className="text-[22px] sm:text-[26px] font-black text-transparent bg-clip-text bg-gradient-to-br from-white via-white to-white/50 leading-[1.15] mb-2.5 tracking-tight">{post.title}</h3>
         <div className={`relative ${!isExpanded && isLongText ? 'max-h-[140px] overflow-hidden' : ''}`}>
             <p className="text-[15px] sm:text-[17px] text-[#C4C5D5] leading-[1.6] whitespace-pre-wrap font-medium">
-          {post.content?.split(/((?:https?:\/\/[^\s]+)|(?:#\w+))/g).map((part, i) => {
+          {post.content?.split(/((?:https?:\/\/[^\s]+)|(?:#\w+)|(?:@\w+))/g).map((part, i) => {
             if (part.match(/(https?:\/\/[^\s]+)/)) {
               return <a key={i} href={part} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()} className="text-blue-400 hover:underline">{part}</a>;
             } else if (part.match(/#\w+/)) {
               return <span key={i} className="text-blue-400 font-medium">{part}</span>;
+            } else if (part.match(/@\w+/)) {
+              return <Link key={i} href={`/profile/${part}`} onClick={e => e.stopPropagation()} className="text-[#00E5FF] font-medium hover:underline">{part}</Link>;
             }
             return part;
           })}

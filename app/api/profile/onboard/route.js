@@ -13,6 +13,15 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Username and display name are required.' }, { status: 400 });
     }
 
+    const validateUsername = (val) => {
+      if (/[A-Z]/.test(val)) return 'Username must be lowercase only.';
+      if (/\s/.test(val)) return 'Username cannot contain spaces.';
+      if (!/^[a-z0-9_]+$/.test(val)) return 'Only lowercase letters, numbers, and underscores are allowed.';
+      if (val.length < 3) return 'Username must be at least 3 characters.';
+      if (val.length > 15) return 'Username cannot exceed 15 characters.';
+      return null;
+    };
+
     const cookieStore = await cookies();
     
     // 1. Create standard client to verify who is making the request
@@ -54,6 +63,10 @@ export async function POST(request) {
     if (existingProfile) {
       if (existingProfile.username?.startsWith('deleted_')) {
         console.log('[Onboard API] Found anonymized deleted_ profile. Wiping to bypass 15-day trigger...');
+        
+        const errorMsg = validateUsername(username);
+        if (errorMsg) return NextResponse.json({ error: errorMsg }, { status: 400 });
+
         // 1. Delete the stuck anonymized profile so we can insert a fresh one
         await adminClient.from('profiles').delete().eq('id', user.id);
         
@@ -77,6 +90,8 @@ export async function POST(request) {
         };
         
         if (existingProfile.username !== username) {
+          const errorMsg = validateUsername(username);
+          if (errorMsg) return NextResponse.json({ error: errorMsg }, { status: 400 });
           updatePayload.username = username;
         }
 
@@ -88,6 +103,9 @@ export async function POST(request) {
       }
     } else {
       // No profile — insert a new one
+      const errorMsg = validateUsername(username);
+      if (errorMsg) return NextResponse.json({ error: errorMsg }, { status: 400 });
+
       const { error: insertError } = await adminClient
         .from('profiles')
         .insert({

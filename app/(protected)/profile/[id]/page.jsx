@@ -70,14 +70,24 @@ export default function UserProfilePage() {
     try {
       setLoading(true);
       
-      // 1. Fetch Profile
-      const { data: profileData, error: profileError } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', id)
-        .single();
+      const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id);
+      
+      let profileData = null;
+      let targetId = id;
+
+      // 1. Fetch Profile (by ID or Username)
+      if (isUUID) {
+        const { data, error } = await supabase.from('profiles').select('*').eq('id', id).single();
+        if (error) throw error;
+        profileData = data;
+      } else {
+        const cleanUsername = decodeURIComponent(id).replace('@', '');
+        const { data, error } = await supabase.from('profiles').select('*').ilike('username', cleanUsername).single();
+        if (error) throw error;
+        profileData = data;
+        targetId = data.id;
+      }
         
-      if (profileError) throw profileError;
       setProfile(profileData);
 
       // 2. Fetch Connection Count (Accepted)
@@ -85,7 +95,7 @@ export default function UserProfilePage() {
         .from('connections')
         .select('*', { count: 'exact', head: true })
         .eq('status', 'accepted')
-        .or(`follower_id.eq.${id},following_id.eq.${id}`);
+        .or(`follower_id.eq.${targetId},following_id.eq.${targetId}`);
         
       setConnectionCount(acceptedCount || 0);
 
@@ -93,20 +103,20 @@ export default function UserProfilePage() {
       const { count: dCount } = await supabase
         .from('posts')
         .select('*', { count: 'exact', head: true })
-        .eq('author_id', id);
+        .eq('author_id', targetId);
 
       // 4. Fetch Solved Count
       const { count: sCount } = await supabase
         .from('posts')
         .select('*', { count: 'exact', head: true })
-        .eq('author_id', id)
+        .eq('author_id', targetId)
         .eq('is_solved', true);
 
       // 5. Fetch Best Replies Count
       const { count: rCount } = await supabase
         .from('comments')
         .select('*', { count: 'exact', head: true })
-        .eq('author_id', id)
+        .eq('author_id', targetId)
         .eq('is_best_answer', true);
 
       setStats({
@@ -116,11 +126,11 @@ export default function UserProfilePage() {
       });
 
       // 6. Check connection status between current user and this profile
-      if (user && user.id !== id) {
+      if (user && user.id !== targetId) {
         const { data: connData } = await supabase
           .from('connections')
           .select('*')
-          .or(`and(follower_id.eq.${user.id},following_id.eq.${id}),and(follower_id.eq.${id},following_id.eq.${user.id})`)
+          .or(`and(follower_id.eq.${user.id},following_id.eq.${targetId}),and(follower_id.eq.${targetId},following_id.eq.${user.id})`)
           .maybeSingle();
           
         if (connData) {
@@ -128,7 +138,7 @@ export default function UserProfilePage() {
             setConnectionState('connected');
           } else if (connData.follower_id === user.id) {
             setConnectionState('pending_sent');
-          } else if (connData.follower_id === id) {
+          } else if (connData.follower_id === targetId) {
             setConnectionState('pending_received');
           }
         } else {
@@ -153,7 +163,7 @@ export default function UserProfilePage() {
   // Fetch Items when activeTab changes
   useEffect(() => {
     async function fetchItems() {
-      if (!id) return;
+      if (!profile?.id) return;
       try {
         setLoadingPosts(true);
         let data = [];
@@ -161,14 +171,14 @@ export default function UserProfilePage() {
           const { data: postsData } = await supabase
             .from('posts')
             .select('*, profiles!posts_author_id_fkey(display_name, username, avatar_url), likes(count), comments(count)')
-            .eq('author_id', id)
+            .eq('author_id', profile.id)
             .order('created_at', { ascending: false });
           data = postsData || [];
         } else if (activeTab === 'Solved Discussions') {
           const { data: postsData } = await supabase
             .from('posts')
             .select('*, profiles!posts_author_id_fkey(display_name, username, avatar_url), likes(count), comments(count)')
-            .eq('author_id', id)
+            .eq('author_id', profile.id)
             .eq('is_solved', true)
             .order('created_at', { ascending: false });
           data = postsData || [];
@@ -176,7 +186,7 @@ export default function UserProfilePage() {
           const { data: commentsData } = await supabase
             .from('comments')
             .select('post_id')
-            .eq('author_id', id)
+            .eq('author_id', profile.id)
             .eq('is_best_answer', true);
             
           if (commentsData && commentsData.length > 0) {
@@ -197,7 +207,7 @@ export default function UserProfilePage() {
       }
     }
     fetchItems();
-  }, [activeTab, id]);
+  }, [activeTab, profile?.id]);
 
   const handleConnect = async () => {
     if (!user || connecting) return;

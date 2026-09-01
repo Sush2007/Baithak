@@ -17,7 +17,7 @@ const TABS = ['For You', 'Unanswered', 'Solved'];
 
 // Removed inline ReportModal
 
-const DashboardPageClient = ({ initialPosts = [], initialTags = ['All'] }) => {
+const DashboardPageClient = ({ initialPosts = [], initialTags = ['All', 'trending'] }) => {
   const { user } = useAuth();
   const router = useRouter();
 
@@ -130,6 +130,33 @@ const DashboardPageClient = ({ initialPosts = [], initialTags = ['All'] }) => {
       };
     }, [activeTab]);
 
+    // Realtime Postgres Listeners (Likes & Comments)
+    // We create ONE channel per dashboard to avoid creating 50+ channels which would hit connection limits.
+    useEffect(() => {
+      // Create a single realtime channel for the dashboard
+      const channel = supabase.channel('dashboard_realtime')
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'likes' },
+          (payload) => {
+            window.dispatchEvent(new CustomEvent('realtime_like', { detail: payload }));
+          }
+        )
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'comments' },
+          (payload) => {
+            window.dispatchEvent(new CustomEvent('realtime_comment', { detail: payload }));
+          }
+        )
+        .subscribe();
+
+      return () => {
+        // CLEANUP: Prevents ghost connections when leaving the page
+        supabase.removeChannel(channel);
+      };
+    }, []);
+
   const fetchPosts = async (offset = 0, isInitial = false) => {
     if (!hasMore && !isInitial) return;
     
@@ -177,17 +204,19 @@ const DashboardPageClient = ({ initialPosts = [], initialTags = ['All'] }) => {
         
         // Only fetch all tags once on initial load (for the tag filter UI)
         // Skip if we already have tags from SSR
-        if (activeTagFilter === 'All' && dynamicTags.length <= 1) {
+        if (activeTagFilter === 'All' && dynamicTags.length <= 2) {
            // Optimization: Limit to the 50 most recent posts so we don't do a full table scan 
            // and download massive JSON payloads which takes 10+ seconds
            const { data: allTagsData } = await supabase.from('posts').select('tags').order('created_at', { ascending: false }).limit(50);
            const tagsSet = new Set();
            allTagsData?.forEach(p => {
              if (p.tags && Array.isArray(p.tags)) {
-               p.tags.forEach(t => tagsSet.add(t));
+               p.tags.forEach(t => {
+                 if (t !== 'trending' && t.toLowerCase() !== 'all') tagsSet.add(t);
+               });
              }
            });
-           setDynamicTags(['All', ...Array.from(tagsSet)]);
+           setDynamicTags(['All', 'trending', ...Array.from(tagsSet)]);
         }
       } else {
         setPosts(prev => {

@@ -37,6 +37,11 @@ export function useNotifications() {
           if (payload.new.actor_id !== user.id) {
             setUnreadCount((prev) => prev + 1);
             
+            // Dispatch event for UI updates globally
+            if (typeof window !== 'undefined') {
+              window.dispatchEvent(new CustomEvent('new_notification_received', { detail: payload.new }));
+            }
+            
             // Show toast
             const { data: actorData } = await supabase
               .from('profiles')
@@ -45,8 +50,37 @@ export function useNotifications() {
               .single();
               
             const actorName = actorData?.display_name || 'Someone';
-            const actionText = payload.new.type === 'like' ? 'liked your post' : 'commented on your post';
-            toast(`${actorName} ${actionText}`, { icon: payload.new.type === 'like' ? '❤️' : '💬' });
+            
+            let actionText = 'interacted with your post';
+            let icon = '🔔';
+            
+            if (payload.new.type === 'like') {
+              actionText = 'liked your post';
+              icon = '❤️';
+            } else if (payload.new.type === 'comment') {
+              actionText = 'replied to your post';
+              icon = '💬';
+            } else if (payload.new.type === 'mention' || payload.new.type === 'mention_comment') {
+              actionText = 'mentioned you!';
+              icon = '👋';
+            } else if (payload.new.type === 'connection_request') {
+              actionText = 'sent you a connection request!';
+              icon = '🤝';
+            } else if (payload.new.type === 'connection_accepted') {
+              actionText = 'accepted your connection request!';
+              icon = '🎉';
+            }
+
+            toast(`${actorName} ${actionText}`, { 
+              icon,
+              style: {
+                background: '#1A1B22',
+                color: '#fff',
+                border: '1px solid rgba(255,255,255,0.1)',
+                fontSize: '14px',
+                fontWeight: '500'
+              }
+            });
           }
         }
       )

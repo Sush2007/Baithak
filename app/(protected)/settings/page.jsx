@@ -82,8 +82,29 @@ export default function SettingsPage() {
   const canChangeUsername = !lastChange || daysSinceChange >= 15;
   const daysUntilCanChange = canChangeUsername ? 0 : 15 - daysSinceChange;
 
+  const validateUsername = (val) => {
+    if (!val || val.trim() === '') return 'Username is required.';
+    if (/[A-Z]/.test(val)) return 'Username must be lowercase only.';
+    if (/\s/.test(val)) return 'Username cannot contain spaces.';
+    if (!/^[a-z0-9_]+$/.test(val)) return 'Only lowercase letters, numbers, and underscores are allowed.';
+    if (val.length < 3) return 'Username must be at least 3 characters.';
+    if (val.length > 15) return 'Username cannot exceed 15 characters.';
+    return null;
+  };
+
   const handleSaveProfile = async () => {
     if (!user) return;
+    
+    // Validate username ONLY if it was changed from the original. 
+    // This grandfathers in old users with violating usernames.
+    if (formData.username !== profile?.username) {
+      const errorMsg = validateUsername(formData.username);
+      if (errorMsg) {
+        alert(errorMsg);
+        return;
+      }
+    }
+
     setIsSaving(true);
     try {
       // Import here if dynamic, but usually better at top level. Let's assume standard import at top.

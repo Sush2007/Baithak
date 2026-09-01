@@ -166,11 +166,13 @@ export default function NotificationsPage() {
   const getIconConfig = (type) => {
     switch(type) {
       case 'comment': return { icon: MessageSquare, color: 'text-blue-400', bg: 'bg-blue-400/10' };
+      case 'mention': 
+      case 'mention_comment': return { icon: MessageSquare, color: 'text-blue-400', bg: 'bg-blue-400/10' };
       case 'like': return { icon: Heart, color: 'text-red-400', bg: 'bg-red-400/10' };
       case 'post': return { icon: Star, color: 'text-purple-400', bg: 'bg-purple-400/10' };
       case 'system': return { icon: AlertCircle, color: 'text-red-500', bg: 'bg-red-500/10' };
-        case 'connection_request': return { icon: Users, color: 'text-green-400', bg: 'bg-green-400/10' };
-        case 'connection_accepted': return { icon: Users, color: 'text-blue-400', bg: 'bg-blue-400/10' };
+      case 'connection_request': return { icon: Users, color: 'text-green-400', bg: 'bg-green-400/10' };
+      case 'connection_accepted': return { icon: Users, color: 'text-blue-400', bg: 'bg-blue-400/10' };
       case 'connection_accepted_by_me': return { icon: Users, color: 'text-green-400', bg: 'bg-green-400/10' };
       default: return { icon: Award, color: 'text-accent-yellow', bg: 'bg-accent-yellow/10' };
     }
@@ -200,6 +202,22 @@ export default function NotificationsPage() {
           <>
             <p className="text-sm font-medium text-white/90">
               {actorName} <span className="font-normal text-white/60">liked your post</span> <span className="text-blue-400">{notification.post?.title}</span>
+            </p>
+          </>
+        );
+      case 'mention':
+        return (
+          <>
+            <p className="text-sm font-medium text-white/90">
+              {actorName} <span className="font-normal text-white/60">mentioned you in a post</span> <span className="text-blue-400">{notification.post?.title || 'a discussion'}</span>
+            </p>
+          </>
+        );
+      case 'mention_comment':
+        return (
+          <>
+            <p className="text-sm font-medium text-white/90">
+              {actorName} <span className="font-normal text-white/60">mentioned you in a reply to</span> <span className="text-blue-400">{notification.post?.title || 'a discussion'}</span>
             </p>
           </>
         );

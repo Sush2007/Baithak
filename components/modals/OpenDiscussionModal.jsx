@@ -316,6 +316,30 @@ export default function OpenDiscussionModal({ isOpen, onClose }) {
 
       if (error) throw error;
       
+      // Extract mentions and send notifications
+      const mentions = content.match(/@([a-zA-Z0-9_]+)/g);
+      if (mentions && mentions.length > 0) {
+        const uniqueUsernames = [...new Set(mentions.map(m => m.slice(1).toLowerCase()))];
+        const { data: mentionedUsers } = await supabase
+          .from('profiles')
+          .select('id')
+          .in('username', uniqueUsernames);
+          
+        if (mentionedUsers && mentionedUsers.length > 0) {
+          const notifications = mentionedUsers
+            .filter(u => u.id !== user.id)
+            .map(u => ({
+              user_id: u.id,
+              actor_id: user.id,
+              type: 'mention', // 'mention' type to integrate with standard notifications
+              post_id: insertedPost.id
+            }));
+          if (notifications.length > 0) {
+            await supabase.from('notifications').insert(notifications).catch(e => console.error('Mentions error:', e));
+          }
+        }
+      }
+
       // Award Honor Points (Fire & Forget)
       fetch('/api/honor/award', {
         method: 'POST',
