@@ -66,7 +66,7 @@ const AboutUsPageClient = () => {
     if (lightTubeRef.current) {
       tl.fromTo(lightTubeRef.current,
         { scaleX: 0, opacity: 0 },
-        { scaleX: 1, opacity: 1, duration: 1.2, ease: 'expo.out' }
+        { scaleX: 1, opacity: 1, duration: 0.6, ease: 'expo.out' }
       );
     }
 
@@ -74,9 +74,9 @@ const AboutUsPageClient = () => {
     const headingLines = [aboutTitleRef.current, usTitleRef.current].filter(Boolean);
     if (headingLines.length > 0) {
       tl.fromTo(headingLines,
-        { y: 80, opacity: 0 },
-        { y: 0, opacity: 1, duration: 0.8, stagger: 0.15 },
-        '-=0.8'
+        { y: 40, opacity: 0 },
+        { y: 0, opacity: 1, duration: 0.5, stagger: 0.1 },
+        '-=0.4'
       );
     }
 
@@ -84,8 +84,8 @@ const AboutUsPageClient = () => {
     if (backBtnRef.current) {
       tl.fromTo(backBtnRef.current,
         { scale: 0, opacity: 0, rotation: 45 },
-        { scale: 1, opacity: 1, rotation: 0, duration: 0.6, ease: 'back.out(1.7)' },
-        '-=0.4'
+        { scale: 1, opacity: 1, rotation: 0, duration: 0.4, ease: 'back.out(1.7)' },
+        '-=0.2'
       );
     }
 
@@ -97,16 +97,26 @@ const AboutUsPageClient = () => {
       
       tl.fromTo(line,
         { scaleY: 0 },
-        { scaleY: 1, duration: 0.5, ease: 'power2.out' },
-        `-=${index === 0 ? 0.3 : 0.4}`
+        { scaleY: 1, duration: 0.3, ease: 'power2.out' },
+        `-=${index === 0 ? 0.2 : 0.25}`
       );
       
       tl.fromTo(content,
-        { opacity: 0, x: -15 },
-        { opacity: 1, x: 0, duration: 0.5 },
-        '-=0.45'
+        { opacity: 0, x: -10 },
+        { opacity: 1, x: 0, duration: 0.3 },
+        '-=0.2'
       );
     });
+
+    // 5. Team Section fade in
+    const teamSection = document.querySelector('.team-section');
+    if (teamSection) {
+      tl.fromTo(teamSection,
+        { opacity: 0, y: 30 },
+        { opacity: 1, y: 0, duration: 0.5, ease: 'power2.out' },
+        '-=0.1'
+      );
+    }
 
   }, []);
 
@@ -175,6 +185,36 @@ const AboutUsPageClient = () => {
 
             </div>
           ))}
+        </div>
+
+        {/* Team Section */}
+        <div className="team-section w-full mt-32 mb-10 flex flex-col items-center text-center">
+          <h2 className="font-heading font-black text-4xl md:text-5xl uppercase tracking-tighter select-none mb-2">
+            <span className="text-white">Every </span>
+            <span className="text-accent-yellow">Baithak </span>
+            <span className="text-white">has its </span>
+            <span className="text-outline-accent">Regulars</span>
+          </h2>
+          <p className="text-[#8E909E] text-xs font-bold tracking-widest uppercase mb-12">
+            Meet the four who started this one.
+          </p>
+
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 md:gap-8 w-full">
+            {[
+              { name: 'Soumya Patnaik', role: 'Founder & CTO', image: '/founder.png' },
+              { name: 'Sushmit K. Satapathy', role: 'Co-Founder & CEO', image: '/Co-Founder.png' },
+              { name: 'Akshit Bindhani', role: 'Creative Head & COO', image: '/creativehead.png' },
+              { name: 'G. Siddharth', role: 'Product Manager', image: '/product.png' }
+            ].map((member, index) => (
+              <div key={index} className="flex flex-col items-center group cursor-default">
+                <div className="w-full max-w-[110px] md:max-w-[140px] aspect-[4/5] rounded-2xl overflow-hidden mb-5 border border-white/5 bg-white/5 shadow-xl shadow-black/20 flex items-center justify-center group-hover:bg-white/10 transition-colors duration-500">
+                  <User size={40} className="text-white/20 group-hover:text-accent-yellow/50 group-hover:scale-110 transition-all duration-500" />
+                </div>
+                <h3 className="text-white font-bold text-lg md:text-xl">{member.name}</h3>
+                <p className="text-[#8E909E] text-xs md:text-sm font-medium uppercase mt-1.5 tracking-wider">{member.role}</p>
+              </div>
+            ))}
+          </div>
         </div>
 
       </div>

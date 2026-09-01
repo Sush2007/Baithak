@@ -173,7 +173,6 @@ export default function HonorDashboard() {
               <div className="w-full max-w-sm">
                 <div className="flex justify-between text-[11px] text-[#8E909E] mb-1.5 font-medium">
                   <span>Progress to {nextBadge.name}</span>
-                  <span>{(nextBadge.requirement - lifetimeHP).toLocaleString()} HP needed</span>
                 </div>
                 <div className="w-full h-2 bg-white/5 rounded-full overflow-hidden border border-white/5">
                   <div 

@@ -26,7 +26,7 @@ export default function HonorWidget({ isOwnProfile = false, profileData }) {
     progress = 100;
   }
 
-  const canRedeem = profile.lifetime_honor >= 5000;
+  const canRedeem = profile.lifetime_honor >= 2000;
 
   const handleRedeem = async () => {
     if (!upiId.trim()) return;
@@ -112,11 +112,11 @@ export default function HonorWidget({ isOwnProfile = false, profileData }) {
                   {!canRedeem && (
                     <div 
                       className="absolute inset-y-0 left-0 bg-blue-500/20 transition-all duration-1000 ease-out"
-                      style={{ width: `${Math.min(100, (profile.lifetime_honor / 5000) * 100)}%` }}
+                      style={{ width: `${Math.min(100, (profile.lifetime_honor / 2000) * 100)}%` }}
                     />
                   )}
                   <span className="relative z-10 flex items-center justify-center gap-2">
-                    {canRedeem ? 'Redeem Points' : `Reach 5,000 pts to Redeem (${profile.lifetime_honor}/5000)`}
+                    {canRedeem ? 'Redeem Points' : `Reach 2,000 pts to Redeem (${profile.lifetime_honor}/2000)`}
                   </span>
                 </button>
 

@@ -78,7 +78,7 @@ export async function GET(request) {
       sessionCookies.forEach(({ name, value, options }) => {
         // Clean empty domain which can break Next.js cookies
         const safeOptions = { ...options };
-        if (safeOptions.domain === '') {
+        if (!safeOptions.domain || safeOptions.domain === 'localhost') {
           delete safeOptions.domain;
         }
         response.cookies.set({

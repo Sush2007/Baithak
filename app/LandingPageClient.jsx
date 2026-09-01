@@ -23,7 +23,7 @@ const FAQS = [
   },
   {
     q: "Can I redeem my Honor Points?",
-    a: "Redemption is coming soon! Keep contributing and stacking your points to unlock exclusive perks, badges, and upcoming community rewards."
+    a: "Yes! You can redeem 2,000 Honor Points directly for ₹20. Keep contributing, sharing knowledge, and stacking your points to earn real cash rewards."
   },
   {
     q: "Can I remain anonymous?",
@@ -396,9 +396,16 @@ const LandingPageClient = () => {
               </h1>
    
             
-              <p className="text-on-surface-variant text-base md:text-lg mb-10 max-w-xl leading-relaxed">
+              <p className="text-on-surface-variant text-base md:text-lg mb-6 max-w-xl leading-relaxed">
                 Ask questions. Get answers from seniors who actually know your courses, canteen hacks, and exam patterns. Build reputation that opens doors on campus.
               </p>
+              
+              <div className="flex items-center gap-3 bg-white/5 border border-accent-yellow/30 px-4 py-2 rounded-full mb-10 shadow-[0_0_15px_rgba(255,186,9,0.15)] backdrop-blur-sm group hover:bg-white/10 transition-colors cursor-default">
+                <span className="text-lg animate-bounce">💰</span>
+                <span className="text-sm font-bold text-white transition-colors">
+                  <span className="text-accent-yellow">Earn while you help:</span> Redeem 2,000 Honor Points for ₹20!
+                </span>
+              </div>
             </div>
 
             {/* Right column: Login Interface */}
@@ -569,9 +576,13 @@ const LandingPageClient = () => {
                 <div className="step-desc-3 transition-all duration-300">
                   <span className="px-3 py-1 bg-accent-yellow/10 border border-accent-yellow/30 text-accent-yellow rounded-full text-[10px] font-bold uppercase tracking-widest">Step 3</span>
                   <h3 className="text-2xl font-bold text-on-surface mt-3 mb-2 font-heading">Get Answered & Earn Points</h3>
-                  <p className="text-sm text-on-surface-variant leading-relaxed">
+                  <p className="text-sm text-on-surface-variant leading-relaxed mb-3">
                     Get clear, contextual answers in no time. Answer others' questions to accumulate Honour Points and unlock achievements.
                   </p>
+                  <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-green-500/10 border border-green-500/20 rounded-full">
+                    <span className="text-sm">🤑</span>
+                    <span className="text-xs font-bold text-green-400">2,000 Points = ₹20 Cash Reward</span>
+                  </div>
                 </div>
               </div>
 
